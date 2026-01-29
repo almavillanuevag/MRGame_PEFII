@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "841494672440",
+    "project_id": "mrgame-pefii-v2",
+    "storage_bucket": "mrgame-pefii-v2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:841494672440:android:a1dca8de932a4f4d95e2cd",
+        "android_client_info": {
+          "package_name": "com.uaudemhuro.mrgame_pefii_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyeX1P56O1woFk-te8iYdbJth9mRuAjNU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
