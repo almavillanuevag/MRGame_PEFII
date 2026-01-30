@@ -7,7 +7,7 @@ public class FollowHand : MonoBehaviour
     // Asignar el objeto OVRSkeleton desde el Inspector
     public OVRSkeleton ovrSkeleton;
     // Asignar un TMPro para ver mensajes en MR
-    public TMPro.TextMeshPro debugText;
+    public TMPro.TextMeshProUGUI debugText;
 
     // Parametros importantes que definir
     float colliderRadius = 0.015f; 
