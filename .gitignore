@@ -75,3 +75,6 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 Assets/Firebase/Plugins/x86_64/
 
+# Ignorar el doc de google-services por seguridad
+Assets/Plugins/Android/google-services.json
+
