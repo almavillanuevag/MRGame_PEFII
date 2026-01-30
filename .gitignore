@@ -77,4 +77,5 @@ Assets/Firebase/Plugins/x86_64/
 
 # Ignorar el doc de google-services por seguridad
 Assets/Plugins/Android/google-services.json
+Assets/Plugins/Android/google-services.json.meta
 
