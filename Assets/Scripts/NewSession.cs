@@ -52,9 +52,6 @@ public class NewSession : MonoBehaviour
     {
         // Generar nuevo ID para la proxima sesión
         GenerateNewSessionID();
-
-        // volver a cargar sesion
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     void GenerateNewSessionID()

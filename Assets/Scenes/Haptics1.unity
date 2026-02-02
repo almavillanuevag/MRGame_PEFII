@@ -14922,6 +14922,55 @@ Transform:
   m_Children: []
   m_Father: {fileID: 423511578}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1858622547
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1858622549}
+  - component: {fileID: 1858622548}
+  m_Layer: 0
+  m_Name: SessionContext
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1858622548
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1858622547}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09f9cc469c3f1024ba96e958d33f6be3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  IDSession: 
+  IDPx: 
+  PatientsDropdown: {fileID: 1970033461}
+  debugText: {fileID: 419660488}
+  CurrentSessionNumber: 0
+--- !u!4 &1858622549
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1858622547}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -0.12590611, y: 0.060177244, z: -0.006465058}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1868809375
 GameObject:
   m_ObjectHideFlags: 0
@@ -16009,7 +16058,6 @@ GameObject:
   - component: {fileID: 1970033463}
   - component: {fileID: 1970033462}
   - component: {fileID: 1970033461}
-  - component: {fileID: 1970033464}
   m_Layer: 5
   m_Name: PatientsDropdown
   m_TagString: Untagged
@@ -16104,7 +16152,7 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1970033464}
+      - m_Target: {fileID: 1858622548}
         m_TargetAssemblyTypeName: SelectPatient, Assembly-CSharp
         m_MethodName: OnSelectedPatient
         m_Mode: 3
@@ -16155,23 +16203,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1970033459}
   m_CullTransparentMesh: 1
---- !u!114 &1970033464
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1970033459}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 09f9cc469c3f1024ba96e958d33f6be3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  IDSession: 
-  IDPx: 
-  PatientsDropdown: {fileID: 1970033461}
-  debugText: {fileID: 419660488}
-  CurrentSessionNumber: 0
 --- !u!1 &1970263223
 GameObject:
   m_ObjectHideFlags: 0
@@ -16867,3 +16898,4 @@ SceneRoots:
   - {fileID: 54778856}
   - {fileID: 51140776}
   - {fileID: 1954680537}
+  - {fileID: 1858622549}

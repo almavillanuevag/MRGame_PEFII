@@ -1,5 +1,3 @@
-using Meta.XR;
-using Oculus.Interaction;
 using System.Collections;
 using TMPro;
 using UnityEngine;
