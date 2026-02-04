@@ -1,32 +1,33 @@
+using UnityEngine;
 using Bhaptics.SDK2;
 using Bhaptics.SDK2.Glove;
-using Oculus.Interaction;
 using Unity.Mathematics;
-using UnityEngine;
 using UnityEngine.Splines;
 
 public class FingerHapticFeedback : MonoBehaviour
 {
     [Header("Elementos para interacciones (asignados en FollowHand.cs)")]
     public SplineContainer trajectorySpline; // Spline de la trayectoria
-    public ShipMovement shipMovementR; // Script para obtener flag de que ya tomo la nave (comenzó el juego)
+    public ShipMovement shipMovementR;
     public ShipMovement shipMovementL;
     public TMPro.TextMeshProUGUI debugText; // Para logs
     public int fingerIndex; // Configuración del Dedo
                             // 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky
     public bool isLeftHand;
 
+    [Header("¿Visualizar Render?")]
+    // Configuración del render visual
+    LineRenderer lineR;
+    
+    float lineWidth = 0.005f;
+    public bool viewRender = true;
+
     // -- Variables para uso interno --
     PositionType handPosition;
     SplineExtrude splineExtrude;
     Vector3 distanceVectorFromSpline;
     float distanceFromSpline;
-    float fingerMargin = 1.5f;
-    bool isVibrating = false;
-
-    // Configuración del render visual (quitar despues)
-    float lineWidth = 0.005f; 
-    LineRenderer lineR; 
+    float fingerMargin = 1.2f;
 
     void Start()
     {
@@ -37,15 +38,28 @@ public class FingerHapticFeedback : MonoBehaviour
             Log($"{gameObject.name}: trajectorySpline no asignado");
             return;
         }
-        
-        SetupLineRenderer();
+
+        if (viewRender)
+            SetupLineRenderer();
     }
 
     void Update()
     {
-        // No comenzar a vibrar hasta que comience el juego (la mano tome la nave)
+        // No comenzar a vibrar hasta que el juego comience (alguna mano tome la nave)
         if (shipMovementR.StartGame && shipMovementL.StartGame)
             return;
+
+        // Identificar la mano que colisionó con la nave y solo ejecutar este código en los colliders de la mano activa
+        if (isLeftHand)
+        {
+            if (shipMovementL.HandGrab != 1)
+                return;
+        }
+        else
+        {
+            if (shipMovementR.HandGrab != 2)
+                return;
+        }
 
         if (trajectorySpline == null || lineR == null) 
             return;
@@ -63,20 +77,27 @@ public class FingerHapticFeedback : MonoBehaviour
         distanceVectorFromSpline = CalculateDistanceFromSpline(fingerWorldPos, fingerLocalPos);
         distanceFromSpline = distanceVectorFromSpline.magnitude;
 
-        // Cambio de color si supera el radio
+        // Retroalimentacion haptica si supera el radio
         if (distanceFromSpline > fingerMarginRadius)
-        { 
-            lineR.material.color = Color.red;
-            VibrateFinger(distanceVectorFromSpline);
+        {
+            if (viewRender)
+                lineR.material.color = Color.red;
+
+            float outside = Mathf.Max(0f, distanceFromSpline - fingerMarginRadius);
+            float maxOutside = tubeRadius * 0.6f; // ajusta a tu gusto
+            float intensity = Mathf.Clamp01(outside / maxOutside);
+
+            VibrateFinger(distanceVectorFromSpline, intensity);
         }
         else
         {
-            lineR.material.color = Color.green;
+            if (viewRender)
+                lineR.material.color = Color.green;
+
             StopVibration();
         }
     }
 
-    
     void SetupLineRenderer() // Configuración para que se vea en las Oculus
     {
         lineR = gameObject.GetComponent<LineRenderer>();
@@ -121,12 +142,16 @@ public class FingerHapticFeedback : MonoBehaviour
         Vector3 distanceVector = fingerWorldPos - nearestWorldPos;
 
         // Actualizar la línea visual
-        lineR.SetPosition(0, fingerWorldPos);   // Punto A: Dedo
-        lineR.SetPosition(1, nearestWorldPos);  // Punto B: Tubo
-
+        if (viewRender)
+        {
+            lineR.SetPosition(0, fingerWorldPos);   // Punto A: Dedo
+            lineR.SetPosition(1, nearestWorldPos);  // Punto B: Tubo
+        }
+        
         return distanceVector;
     }
-    private void VibrateFinger(Vector3 collisionVelocity)
+
+    public void VibrateFinger(Vector3 distanceVector, float intensity01)
     {
         if (BhapticsPhysicsGlove.Instance == null)
         {
@@ -134,14 +159,17 @@ public class FingerHapticFeedback : MonoBehaviour
             return;
         }
 
-        // Escalar velocidad
-        Vector3 scaledVelocity = collisionVelocity;
-        // Enviar feedback háptico
+        intensity01 = Mathf.Clamp01(intensity01);
+
+        // Dirección hacia donde está el error + magnitud controlada (0..1)
+        Vector3 scaledVelocity = (distanceVector.sqrMagnitude > 1e-6f)
+            ? distanceVector.normalized * intensity01
+            : Vector3.zero;
+
         BhapticsPhysicsGlove.Instance.SendEnterHaptic(handPosition, fingerIndex, scaledVelocity);
-        isVibrating = true;
     }
 
-    private void StopVibration() // Detiene vibración en el dedo
+    public void StopVibration() // Detiene vibración en el dedo
     {
         if (BhapticsPhysicsGlove.Instance == null)
         {
@@ -150,7 +178,6 @@ public class FingerHapticFeedback : MonoBehaviour
         }
 
         BhapticsPhysicsGlove.Instance.SendExitHaptic(handPosition, fingerIndex);
-        isVibrating = false;
     }
     private void Log(string msg)
     {

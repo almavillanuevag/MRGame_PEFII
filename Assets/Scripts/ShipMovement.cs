@@ -3,14 +3,24 @@ using Meta.XR.MRUtilityKit;
 
 public class ShipMovement : MonoBehaviour
 {
+    [Header("Asignar elementos para interacciones")]
     public GameObject handpoint; // punto de la palma de la mano donde se posicionara la nave
     public GameObject HandGrabInteraction; // building block para dejar de interactuar
-    private GameObject Ship;
+    public OVRSkeleton ovrSkeleton;
+    public TMPro.TextMeshProUGUI debugText; // Para Display Debugs
 
-    private bool isHolding = false; // flag para sujetar
+
+    [Header("Objetos publicos para lectura")]
     public bool StartGame = true; // flag para que almacene el tiempo de inicio
     public float BeginningTime;
-    public TMPro.TextMeshProUGUI debugText; // Para Display Debugs
+    public int HandGrab = 0; // Conocer estado de que mano lo tomo:
+                                 // 0 -> no ha colisionado
+                                 // 1 -> mano izquierda
+                                 // 2 -> mano derecha
+
+    // -- Otras variables a declarar para funcionamiento interno --
+    bool isHolding = false; 
+    GameObject Ship;
 
     private void Update()
     {
@@ -28,9 +38,13 @@ public class ShipMovement : MonoBehaviour
         {
             if (StartGame)
             {
+                if (ovrSkeleton.name.ToLower().Contains("left")) HandGrab = 1;
+                else HandGrab = 2;
+
                 StartGame = false;
                 BeginningTime = Time.time; // Marcar el tiempo donde inició del juego (cuando toca la nave por primera vez)
             }
+
             GrabShip(other.gameObject);
         }
     }

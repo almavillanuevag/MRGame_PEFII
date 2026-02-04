@@ -213,4 +213,13 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         return null;
     }
 
+    public void StopHapticFeedbackFunctions()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            Destroy(leftHandColliders[i].GetComponent<FingerHapticFeedback>());
+            Destroy(rightHandColliders[i].GetComponent<FingerHapticFeedback>());
+        }
+    }
+
 }

@@ -15,6 +15,7 @@ public class EndGame : MonoBehaviour
     public TMPro.TextMeshProUGUI debugText; // Para Display Debugs (quitar despues, para pruebas)
     public TrajectoryManager TrajectoryManager; // Scrpt de la trayectoria para calcular 
     public GameObject UICanvasWin;
+    public FollowHand followHand;
 
 
     [Header("Objetos publicos para lectura")]
@@ -24,7 +25,7 @@ public class EndGame : MonoBehaviour
     public float radio0 = 0f;
     public float TotalErrors0 = 0;
     public bool OutOfTube = false;
-    public bool End = true;
+    public bool End = false;
     public int sessionNumber;
 
     public float[] metrics;
@@ -101,14 +102,17 @@ public class EndGame : MonoBehaviour
 
             SetShipToFinalPosition(other);
 
+            // Eliminar las funciones de retroalimentacion haptica
+            followHand.StopHapticFeedbackFunctions();
+
             // Cargar UI de victoria y fin del juego
             if (ShowDebugsLog) debugText.text += "\nUIcanvas active";
             UICanvasWin.SetActive(true);
 
             // Calcular las metricas de desempeño solo una vez si ya termino
-            if (End)  
+            if (!End)  
             {
-                End = false; // Flag de que ya termino y que no se vuelvan a calcular
+                End = true; // Flag de que ya termino y que no se vuelvan a calcular
                 if (ShowDebugsLog) debugText.text += "\n---------END!-------";
                 // Obtener el tiempo cuando se colocó la nave en la mano (inicio del juego)
                 BeginningTime = shipMovement.BeginningTime;

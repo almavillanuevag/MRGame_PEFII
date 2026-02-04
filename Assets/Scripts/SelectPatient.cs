@@ -22,11 +22,11 @@ public class SelectPatient : MonoBehaviour
     private void Awake()
     {
         // Mantener la info generada en todas las sesiones, no destruirlo
-        /*if (Instance != null && Instance != this)
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
-        }*/
+        }
 
         Instance = this;
         DontDestroyOnLoad(gameObject);

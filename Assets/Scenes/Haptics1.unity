@@ -5601,9 +5601,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handpoint: {fileID: 1390636900}
   HandGrabInteraction: {fileID: 1609823757}
+  ovrSkeleton: {fileID: 1503520366}
+  debugText: {fileID: 1243459048}
   StartGame: 1
   BeginningTime: 0
-  debugText: {fileID: 1243459048}
+  HandGrab: 0
 --- !u!136 &763526976
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -6050,9 +6052,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   handpoint: {fileID: 1627349526}
   HandGrabInteraction: {fileID: 1609823757}
+  ovrSkeleton: {fileID: 1789891220}
+  debugText: {fileID: 1243459048}
   StartGame: 1
   BeginningTime: 0
-  debugText: {fileID: 1243459048}
+  HandGrab: 0
 --- !u!136 &837844859
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -15632,12 +15636,7 @@ MonoBehaviour:
   debugText: {fileID: 1243459048}
   fingerIndex: 0
   isLeftHand: 1
-  perFingerExtraMargin:
-  - 0.01
-  - 0.01
-  - 0.008
-  - 0.006
-  - 0.006
+  viewRender: 1
 --- !u!1 &1955032268
 GameObject:
   m_ObjectHideFlags: 0
@@ -16760,6 +16759,10 @@ PrefabInstance:
       propertyPath: debugText
       value: 
       objectReference: {fileID: 21490126}
+    - target: {fileID: 2458141958328091555, guid: d6c3386945b3d784f9cc6f4c86c77e09, type: 3}
+      propertyPath: followHand
+      value: 
+      objectReference: {fileID: 1954680534}
     - target: {fileID: 2458141958328091555, guid: d6c3386945b3d784f9cc6f4c86c77e09, type: 3}
       propertyPath: Trayectoria
       value: 
