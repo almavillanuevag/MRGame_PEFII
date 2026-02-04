@@ -6,6 +6,8 @@ public class TrajectoryManager : MonoBehaviour
 {
     [Header("Asignar elementos para interacciones")]
     public Transform Ship; // Poner la nave para conocer su posicion
+    public TMPro.TextMeshProUGUI debugText; // Para Display Debugs
+
 
     [Header("Objetos publicos para lectura")]
     public float radio;
@@ -15,15 +17,15 @@ public class TrajectoryManager : MonoBehaviour
     public float radioSUM = 0.005f;
     public float errors = 0;
     public float TotalError = -1;
-    public TMPro.TextMeshProUGUI debugText; // Para Display Debugs
+    public SplineContainer KnotsSpline;
+    public SplineExtrude splineExtrude;
 
     // Variables internas
     bool OutOfTube = false; // flag para que solo sume 1 error a la 
     Color Green = new Color(0, 1, 0, 0.5f);
     Color Red = new Color(1f, 0, 0, 0.5f);
 
-    SplineContainer KnotsSpline;
-    SplineExtrude splineExtrude;
+    
 
 
     private void Start()

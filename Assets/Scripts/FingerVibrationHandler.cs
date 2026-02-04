@@ -2,14 +2,14 @@ using Bhaptics.SDK2;
 using Bhaptics.SDK2.Glove;
 using UnityEngine;
 
-// Handler de vibración háptica para dedos individuales
-public class FingerVibrationHandler : MonoBehaviour
-{
 
-    [Tooltip("Escala de intensidad de vibración")]
+public class FingerVibrationHandler : MonoBehaviour
+{  // ------ Handler de vibración háptica para dedos individuales -----
+
+    // Escala de intensidad de vibración
     public float velocityScale = 1f;
 
-    [Tooltip("Intensidad mínima para activar vibración")]
+    // Intensidad mínima para activar vibración
     public float minimumVelocity = 0.01f;
 
     public TMPro.TextMeshProUGUI debugText;
@@ -87,8 +87,7 @@ public class FingerVibrationHandler : MonoBehaviour
         isVibrating = true;
     }
 
-    // Detiene vibración en el dedo
-    private void StopVibration()
+    private void StopVibration() // Detiene vibración en el dedo
     {
         if (BhapticsPhysicsGlove.Instance == null)
         {

@@ -101,4 +101,5 @@ public class NewSession : MonoBehaviour
         // Recargar escena
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
+
 }

@@ -1,18 +1,23 @@
 using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Splines;
+using UnityEngine.XR.OpenXR.Input;
 
 public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las puntas de los dedos para hand tracking
 {
-    // Asignar el objeto OVRSkeleton desde el Inspector
+    // Asignar desde el Inspector
     public OVRSkeleton ovrSkeletonL;
     public OVRSkeleton ovrSkeletonR;
+    public SplineContainer trajectorySpline; // Scrpt de la trayectoria para calcular 
+    public ShipMovement shipMovementL; // Script para obtener flag de que ya tomo la nave (comenzó el juego)
+    public ShipMovement shipMovementR;
 
     // Asignar un TMPro para ver mensajes en MR
     public TextMeshProUGUI debugText;
 
     // Parametros importantes que definir
-    public float colliderRadius = 0.015f;
+    public float colliderRadius = 0.007f;
     string fingerLayer = "Default";
     bool isLeftHand;
     int fingerLayerID;
@@ -123,7 +128,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             colliderObjects[i].layer = fingerLayerID;
 
             // Visualizarlas (opcional, quitar despues)
-            /*var renderer = colliderObjects[i].GetComponent<Renderer>();
+            var renderer = colliderObjects[i].GetComponent<Renderer>();
             if (renderer != null)
             {
                 Shader sh = Shader.Find("Universal Render Pipeline/Lit");
@@ -134,8 +139,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
 
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-            }*/
-
+            }
 
             // Escalar el diámetro 
             float diameter = colliderRadius * 2f;
@@ -150,11 +154,19 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Añadir el handler de vibración
+            // Añadir los scripts para retroalimentacion haptica
             var vibrationHandler = colliderObjects[i].AddComponent<FingerVibrationHandler>();
             vibrationHandler.fingerIndex = i;
             vibrationHandler.isLeftHand = isLeftHand;
             vibrationHandler.debugText = debugText;
+
+            var fingerHapticFeedback = colliderObjects[i].AddComponent<FingerHapticFeedback>();
+            fingerHapticFeedback.debugText = debugText;
+            fingerHapticFeedback.isLeftHand = isLeftHand;
+            fingerHapticFeedback.fingerIndex = i;
+            fingerHapticFeedback.trajectorySpline = trajectorySpline;
+            fingerHapticFeedback.shipMovementR = shipMovementR;
+            fingerHapticFeedback.shipMovementL = shipMovementL;
 
             if (debugText != null) debugText.text += "\nCreado " + colliderObjects[i].name;
         }
@@ -173,7 +185,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             yield return null;
         }
 
-        // También es buena idea asegurar que Bones ya exista
+        // Asegurar que Bones ya exista
         while (ovrSkeletonL.Bones == null || ovrSkeletonR.Bones == null ||
                ovrSkeletonL.Bones.Count == 0 || ovrSkeletonR.Bones.Count == 0)
         {
@@ -200,4 +212,5 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         }
         return null;
     }
+
 }

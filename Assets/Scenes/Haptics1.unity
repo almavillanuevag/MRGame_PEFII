@@ -11819,6 +11819,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Ship: {fileID: 1746133046}
+  debugText: {fileID: 0}
   radio: 0
   distance: 0
   erroresMax: 3
@@ -11826,7 +11827,8 @@ MonoBehaviour:
   radioSUM: 0.003
   errors: 0
   TotalError: -1
-  debugText: {fileID: 0}
+  KnotsSpline: {fileID: 0}
+  splineExtrude: {fileID: 0}
 --- !u!114 &1511409404
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -15549,7 +15551,7 @@ GameObject:
   - component: {fileID: 1954680537}
   - component: {fileID: 1954680536}
   - component: {fileID: 1954680534}
-  - component: {fileID: 1954680539}
+  - component: {fileID: 1954680540}
   m_Layer: 0
   m_Name: HapticManager
   m_TagString: Untagged
@@ -15571,6 +15573,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ovrSkeletonL: {fileID: 1503520366}
   ovrSkeletonR: {fileID: 1789891220}
+  trajectorySpline: {fileID: 1511409407}
+  shipMovementL: {fileID: 763526975}
+  shipMovementR: {fileID: 837844858}
   debugText: {fileID: 1703451416}
   colliderRadius: 0.015
 --- !u!114 &1954680536
@@ -15609,51 +15614,30 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 20, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!23 &1954680539
-MeshRenderer:
+--- !u!114 &1954680540
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1954680533}
   m_Enabled: 1
-  m_CastShadows: 0
-  m_ReceiveShadows: 0
-  m_DynamicOccludee: 1
-  m_StaticShadowCaster: 0
-  m_MotionVectors: 1
-  m_LightProbeUsage: 1
-  m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
-  m_RayTraceProcedural: 0
-  m_RayTracingAccelStructBuildFlagsOverride: 0
-  m_RayTracingAccelStructBuildFlags: 1
-  m_SmallMeshCulling: 1
-  m_RenderingLayerMask: 1
-  m_RendererPriority: 0
-  m_Materials:
-  - {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_StaticBatchInfo:
-    firstSubMesh: 0
-    subMeshCount: 0
-  m_StaticBatchRoot: {fileID: 0}
-  m_ProbeAnchor: {fileID: 0}
-  m_LightProbeVolumeOverride: {fileID: 0}
-  m_ScaleInLightmap: 1
-  m_ReceiveGI: 1
-  m_PreserveUVs: 0
-  m_IgnoreNormalsForChartDetection: 0
-  m_ImportantGI: 0
-  m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
-  m_MinimumChartSize: 4
-  m_AutoUVMaxDistance: 0.5
-  m_AutoUVMaxAngle: 89
-  m_LightmapParameters: {fileID: 0}
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_AdditionalVertexStreams: {fileID: 0}
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fb743608d11a7a44835b0c5db1413c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trajectorySpline: {fileID: 1511409407}
+  shipMovementR: {fileID: 837844858}
+  shipMovementL: {fileID: 763526975}
+  debugText: {fileID: 1243459048}
+  fingerIndex: 0
+  isLeftHand: 1
+  perFingerExtraMargin:
+  - 0.01
+  - 0.01
+  - 0.008
+  - 0.006
+  - 0.006
 --- !u!1 &1955032268
 GameObject:
   m_ObjectHideFlags: 0
