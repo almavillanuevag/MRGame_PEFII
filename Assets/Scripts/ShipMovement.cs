@@ -45,7 +45,8 @@ public class ShipMovement : MonoBehaviour
                 BeginningTime = Time.time; // Marcar el tiempo donde inició del juego (cuando toca la nave por primera vez)
             }
 
-            GrabShip(other.gameObject);
+            if(!isHolding)
+                GrabShip(other.gameObject);
         }
     }
 
@@ -60,7 +61,7 @@ public class ShipMovement : MonoBehaviour
         shipObj.transform.rotation = handpoint.transform.rotation;
         shipObj.transform.SetParent(handpoint.transform); // hacerlo hijo para que siga el movimiento
 
-        // Desactivar gravedad y hacerlo cinematico
+        // Desactivar gravedad, interacciones y hacerlo cinematico
         Ship = shipObj;
         Rigidbody rb = Ship.GetComponent<Rigidbody>();
         rb.useGravity = false;
@@ -76,7 +77,7 @@ public class ShipMovement : MonoBehaviour
         isHolding = false;
         Ship = null;
 
-        // Reactivar la interacción de la mano (Building Block)
+        // Reactivar las interacciones de la mano
         HandGrabInteraction.SetActive(true);
 
         debugText.text += "\nNave liberada";

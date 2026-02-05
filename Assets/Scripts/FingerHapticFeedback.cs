@@ -12,13 +12,12 @@ public class FingerHapticFeedback : MonoBehaviour
     public ShipMovement shipMovementL;
     public TMPro.TextMeshProUGUI debugText; // Para logs
     public int fingerIndex; // Configuración del Dedo
-                            // 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky
+                            // 0=Thumb, 1=Index, 2=Middle, 3=Ring, 4=Pinky, 5=Palm
     public bool isLeftHand;
 
     [Header("¿Visualizar Render?")]
     // Configuración del render visual
     LineRenderer lineR;
-    
     float lineWidth = 0.005f;
     public bool viewRender = true;
 
@@ -27,7 +26,22 @@ public class FingerHapticFeedback : MonoBehaviour
     SplineExtrude splineExtrude;
     Vector3 distanceVectorFromSpline;
     float distanceFromSpline;
-    float fingerMargin = 1.2f;
+    float hardTimeAccum = 0f;
+    bool VibrationMuted = false;
+
+    // Margenes por zonas 
+    float softCoreFactor = 0.9f;
+    float hardFactor = 1.5f;
+    float hardMaxExtraFactor = 0.6f;
+
+    // intensidades
+    float softMaxIntensity = 0.25f;
+    float hardMinIntensity = 0.35f; 
+    float hardMaxIntensity = 1.0f;
+
+
+    // Si esta mas de 10s vibrando -> apagar hasta que regrese a la trayectoria
+    float hardSaturationSeconds = 10f;
 
     void Start()
     {
@@ -61,14 +75,19 @@ public class FingerHapticFeedback : MonoBehaviour
                 return;
         }
 
-        if (trajectorySpline == null || lineR == null) 
+        // Asegurar que no vibre si algo está mal
+        if (trajectorySpline == null || lineR == null)
+        {
+            StopVibration();
             return;
+        }
 
         if (splineExtrude == null && trajectorySpline != null)
             splineExtrude = trajectorySpline.GetComponent<SplineExtrude>(); // Almacenar el spline 
 
         float tubeRadius = splineExtrude.Radius;
-        float fingerMarginRadius = tubeRadius * fingerMargin;
+        float softCoreRadius = tubeRadius * softCoreFactor; // sin vibración abajo de esto
+        float hardRadius = tubeRadius * hardFactor;
 
         // Calcular puntos donde se encuentran
         Vector3 fingerWorldPos = transform.position;
@@ -77,31 +96,64 @@ public class FingerHapticFeedback : MonoBehaviour
         distanceVectorFromSpline = CalculateDistanceFromSpline(fingerWorldPos, fingerLocalPos);
         distanceFromSpline = distanceVectorFromSpline.magnitude;
 
-        // Retroalimentacion haptica si supera el radio
-        if (distanceFromSpline > fingerMarginRadius)
+        // Retroalimentacion haptica por zonas 
+
+        // Sin vibracion, dentro del tubo a un 90% del radio
+        if (distanceFromSpline <= softCoreRadius)
         {
-            if (viewRender)
-                lineR.material.color = Color.red;
+            hardTimeAccum = 0f;
+            VibrationMuted = false;
 
-            float outside = Mathf.Max(0f, distanceFromSpline - fingerMarginRadius);
-            float maxOutside = tubeRadius * 0.6f; // ajusta a tu gusto
-            float intensity = Mathf.Clamp01(outside / maxOutside);
-
-            VibrateFinger(distanceVectorFromSpline, intensity);
-        }
-        else
-        {
-            if (viewRender)
-                lineR.material.color = Color.green;
-
+            if (viewRender) lineR.material.color = Color.green;
             StopVibration();
+            return;
         }
+
+        // Cerca del borde -> vibracion leve (soft)
+        if (distanceFromSpline > softCoreRadius && distanceFromSpline <= hardRadius)
+        {
+            hardTimeAccum = 0f;
+            VibrationMuted = false;
+
+            // Proporcional 0 en softCoreRadius, softMaxIntensity en tubeRadius
+            float u = Mathf.InverseLerp(softCoreRadius, tubeRadius, distanceFromSpline);
+            float intensity = Mathf.Lerp(0f, softMaxIntensity, u);
+
+            if (viewRender) lineR.material.color = Color.yellow;
+            VibrateFinger(distanceVectorFromSpline, intensity);
+            return;
+        }
+
+        // Si esta fuera del margen de radio -> vibracion mas intensa (hard)
+        if (distanceFromSpline >= hardRadius)
+        {
+            if (viewRender) lineR.material.color = Color.red;
+
+            // No dejarlo por mas de 10 segundos para evitar saturacion de la sensibilidad del usuario
+            hardTimeAccum += Time.deltaTime;
+            if (hardTimeAccum >= hardSaturationSeconds) VibrationMuted = true;
+
+            if (VibrationMuted)
+            {
+                StopVibration();
+                return;
+            }
+
+            float outside = Mathf.Max(0f, distanceFromSpline - hardRadius);
+            float maxOutside = Mathf.Max(0.001f, tubeRadius * hardMaxExtraFactor);
+            float uHard = Mathf.Clamp01(outside / maxOutside);
+
+            float hardIntensity = Mathf.Lerp(hardMinIntensity, hardMaxIntensity, uHard);
+            VibrateFinger(distanceVectorFromSpline, hardIntensity);
+
+            return;
+        }
+
     }
 
     void SetupLineRenderer() // Configuración para que se vea en las Oculus
     {
-        lineR = gameObject.GetComponent<LineRenderer>();
-        if (lineR == null) lineR = gameObject.AddComponent<LineRenderer>();
+        lineR = gameObject.AddComponent<LineRenderer>();
 
         // Configuración básica de la línea
         lineR.startWidth = lineWidth;
@@ -115,13 +167,13 @@ public class FingerHapticFeedback : MonoBehaviour
 
         Material mat = new Material(sh);
 
-        // Ajustes para que la línea brille y se vea sobre todo
+        // Ajustes para que la línea brille y se vea
         mat.color = Color.green;
 
         // Asignar material
         lineR.material = mat;
 
-        // Asegurar que no proyecte sombras raras
+        // Que no proyecte sombras raras
         lineR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         lineR.receiveShadows = false;
     }
@@ -155,16 +207,14 @@ public class FingerHapticFeedback : MonoBehaviour
     {
         if (BhapticsPhysicsGlove.Instance == null)
         {
-            debugText.text += "\nBhapticsPhysicsGlove.Instance es nulo";
+            Log("BhapticsPhysicsGlove.Instance es nulo");
             return;
         }
 
         intensity01 = Mathf.Clamp01(intensity01);
 
         // Dirección hacia donde está el error + magnitud controlada (0..1)
-        Vector3 scaledVelocity = (distanceVector.sqrMagnitude > 1e-6f)
-            ? distanceVector.normalized * intensity01
-            : Vector3.zero;
+        Vector3 scaledVelocity = distanceVector.normalized * intensity01;
 
         BhapticsPhysicsGlove.Instance.SendEnterHaptic(handPosition, fingerIndex, scaledVelocity);
     }
@@ -173,7 +223,7 @@ public class FingerHapticFeedback : MonoBehaviour
     {
         if (BhapticsPhysicsGlove.Instance == null)
         {
-            debugText.text += "\nBhapticsPhysicsGlove.Instance es nulo";
+            Log("BhapticsPhysicsGlove.Instance es nulo");
             return;
         }
 

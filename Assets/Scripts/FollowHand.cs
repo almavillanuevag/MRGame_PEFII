@@ -22,11 +22,10 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
     bool isLeftHand;
     int fingerLayerID;
     bool trackingReady = false;
-    bool showids = true;
 
     // Colliders para los dedos
-    GameObject[] rightHandColliders = new GameObject[5];
-    GameObject[] leftHandColliders = new GameObject[5];
+    GameObject[] rightHandColliders = new GameObject[6];
+    GameObject[] leftHandColliders = new GameObject[6];
 
     // Roots por mano (para jerarquía)
     GameObject rightRoot;
@@ -35,11 +34,12 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
     // Definir los BoneIds de las puntas de cada dedo
     private OVRSkeleton.BoneId[] fingerBoneIds = new OVRSkeleton.BoneId[]
     {
-        OVRSkeleton.BoneId.XRHand_ThumbTip,  // Pulgar
-        OVRSkeleton.BoneId.XRHand_IndexTip,  // Índice
-        OVRSkeleton.BoneId.XRHand_MiddleTip, // Medio
-        OVRSkeleton.BoneId.XRHand_RingTip,   // Anular
-        OVRSkeleton.BoneId.Hand_PinkyTip   // Meñique
+        OVRSkeleton.BoneId.XRHand_ThumbDistal,        // Pulgar
+        OVRSkeleton.BoneId.XRHand_IndexIntermediate,  // Índice
+        OVRSkeleton.BoneId.XRHand_MiddleIntermediate, // Medio
+        OVRSkeleton.BoneId.XRHand_RingIntermediate,   // Anular
+        OVRSkeleton.BoneId.XRHand_LittleIntermediate,  // Meñique
+        OVRSkeleton.BoneId.XRHand_Palm                // Palma
     };
 
     void Start()
@@ -55,13 +55,13 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         // Crear colliders para mano izquierda
         isLeftHand = true;
         leftHandColliders = CreateFingerColliders();
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
             leftHandColliders[i].transform.SetParent(leftRoot.transform, worldPositionStays: false);
 
         // Crear colliders para mano derecha
         isLeftHand = false;
         rightHandColliders = CreateFingerColliders();
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
             rightHandColliders[i].transform.SetParent(rightRoot.transform, worldPositionStays: false);
 
         // Esperar a que se inicialicen los Skeletons
@@ -84,30 +84,19 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             return;
         }
 
-        // Visualizar UNA vez los skeletos que usa
-        if (showids)
-        {
-            for (int i = 0; i < 5; i++)
-            {
-                var boneL = FindBoneTransform(ovrSkeletonL, fingerBoneIds[i], showids);
-                var boneR = FindBoneTransform(ovrSkeletonR, fingerBoneIds[i], showids);
-            }
-            showids = false;
-        }
-
         // Actualizar posición de cada collider
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
-            var boneL = FindBoneTransform(ovrSkeletonL, fingerBoneIds[i], showids);
-            var boneR = FindBoneTransform(ovrSkeletonR, fingerBoneIds[i], showids);
+            var boneL = FindBoneTransform(ovrSkeletonL, fingerBoneIds[i]);
+            var boneR = FindBoneTransform(ovrSkeletonR, fingerBoneIds[i]);
 
-            if (boneL != null && boneL != null && leftHandColliders[i] != null)
+            if (boneL != null && leftHandColliders[i] != null)
             {
                 leftHandColliders[i].transform.position = boneL.position;
                 leftHandColliders[i].transform.rotation = boneL.rotation;
             }
 
-            if (boneR != null && boneR != null && rightHandColliders[i] != null)
+            if (boneR != null && rightHandColliders[i] != null)
             {
                 rightHandColliders[i].transform.position = boneR.position;
                 rightHandColliders[i].transform.rotation = boneR.rotation;
@@ -118,9 +107,9 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
     private GameObject[] CreateFingerColliders()
     {
         string handPrefix = isLeftHand ? "Left" : "Right";
-        GameObject[] colliderObjects = new GameObject[5];
+        GameObject[] colliderObjects = new GameObject[6];
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
             // Crear GameObject para collider (visual + collider integrado por ser primitive)
             colliderObjects[i] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -154,12 +143,6 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-            // Añadir los scripts para retroalimentacion haptica
-            var vibrationHandler = colliderObjects[i].AddComponent<FingerVibrationHandler>();
-            vibrationHandler.fingerIndex = i;
-            vibrationHandler.isLeftHand = isLeftHand;
-            vibrationHandler.debugText = debugText;
-
             var fingerHapticFeedback = colliderObjects[i].AddComponent<FingerHapticFeedback>();
             fingerHapticFeedback.debugText = debugText;
             fingerHapticFeedback.isLeftHand = isLeftHand;
@@ -167,8 +150,6 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             fingerHapticFeedback.trajectorySpline = trajectorySpline;
             fingerHapticFeedback.shipMovementR = shipMovementR;
             fingerHapticFeedback.shipMovementL = shipMovementL;
-
-            if (debugText != null) debugText.text += "\nCreado " + colliderObjects[i].name;
         }
 
         return colliderObjects;
@@ -196,7 +177,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         if (debugText != null) debugText.text += "\nHand tracking listo";
     }
 
-    private Transform FindBoneTransform(OVRSkeleton skel, OVRSkeleton.BoneId id, bool showids)
+    private Transform FindBoneTransform(OVRSkeleton skel, OVRSkeleton.BoneId id)
     {
         if (skel == null || skel.Bones == null) return null;
 
@@ -204,22 +185,22 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         {
             var b = skel.Bones[i];
             if (b != null && b.Id == id)
-            {
-                if (showids) debugText.text += $"\nBuscando: {id} | Encontrado: {b.Id}";
                 return b.Transform;
-
-            }
         }
         return null;
     }
 
     public void StopHapticFeedbackFunctions()
     {
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 6; i++)
         {
-            Destroy(leftHandColliders[i].GetComponent<FingerHapticFeedback>());
-            Destroy(rightHandColliders[i].GetComponent<FingerHapticFeedback>());
+            FingerHapticFeedback HapticL = leftHandColliders[i].GetComponent<FingerHapticFeedback>();
+            HapticL.StopVibration();
+            Destroy(HapticL);
+
+            FingerHapticFeedback HapticR = rightHandColliders[i].GetComponent<FingerHapticFeedback>();
+            HapticR.StopVibration();
+            Destroy(HapticR);
         }
     }
-
 }
