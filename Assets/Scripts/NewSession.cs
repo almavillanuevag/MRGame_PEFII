@@ -58,7 +58,7 @@ public class NewSession : MonoBehaviour
     {
         if (SelectPatient.Instance == null || string.IsNullOrEmpty(SelectPatient.Instance.IDPx))
         {
-            debugText.text = "Error: No hay instancia de SelectPatient o ID de paciente.";
+            if(debugText !=null) debugText.text = "Error: No hay instancia de SelectPatient o ID de paciente.";
             return;
         }
 
@@ -69,7 +69,7 @@ public class NewSession : MonoBehaviour
         {
             if (task.IsFaulted || task.IsCanceled)
             {
-                debugText.text = "Error al obtener datos del paciente: " + task.Exception;
+                if(debugText !=null) debugText.text = "Error al obtener datos del paciente: " + task.Exception;
                 return;
             }
 
@@ -96,7 +96,7 @@ public class NewSession : MonoBehaviour
         string newIDSession = $"SessionNum{sessionNumber:D3}-{dateDDMMAA}";
         SelectPatient.Instance.IDSession = newIDSession;
 
-        debugText.text += $"\n Próxima sesión: {newIDSession}";
+        if(debugText !=null) debugText.text += $"\n Próxima sesión: {newIDSession}";
 
         // Recargar escena
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);

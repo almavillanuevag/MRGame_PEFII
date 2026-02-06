@@ -7,9 +7,6 @@ using UnityEngine;
 
 public class EndGame : MonoBehaviour
 {
-    [Header("¿Mostrar mensajes?")]
-    public bool ShowDebugsLog = true; // Para mostrar los mensajes (si no los quiero poner false)
-
     [Header("Asignar elementos para interacciones")]
     public Transform PlanetEndPoint; // Punto final donde se situará la nave
     public TMPro.TextMeshProUGUI debugText; // Para Display Debugs (quitar despues, para pruebas)
@@ -55,11 +52,11 @@ public class EndGame : MonoBehaviour
             {
                 // Si todo está bien, inicializamos Firestore
                 db = FirebaseFirestore.DefaultInstance;
-                if (ShowDebugsLog) debugText.text += "\nSe inicializó Firestore";
+                if (debugText != null) debugText.text += "\nSe inicializó Firestore";
             }
             else
             {
-                if (ShowDebugsLog) debugText.text += "\nNo se pudo resolver dependencias de Firestore";
+                if (debugText != null) debugText.text += "\nNo se pudo resolver dependencias de Firestore";
             }
         });
     }
@@ -106,14 +103,12 @@ public class EndGame : MonoBehaviour
             followHand.StopHapticFeedbackFunctions();
 
             // Cargar UI de victoria y fin del juego
-            if (ShowDebugsLog) debugText.text += "\nUIcanvas active";
             UICanvasWin.SetActive(true);
 
             // Calcular las metricas de desempeño solo una vez si ya termino
             if (!End)  
             {
                 End = true; // Flag de que ya termino y que no se vuelvan a calcular
-                if (ShowDebugsLog) debugText.text += "\n---------END!-------";
                 // Obtener el tiempo cuando se colocó la nave en la mano (inicio del juego)
                 BeginningTime = shipMovement.BeginningTime;
                 // Obtener tiempo en el que llegó al planeta fin
@@ -121,7 +116,7 @@ public class EndGame : MonoBehaviour
 
                 // Calcular las metricas
                 metrics = CalculatePerformanceMetrics();
-                if (ShowDebugsLog) debugText.text +=
+                if (debugText != null) debugText.text +=
                     $"\nErrors: {metrics[0]}\n" +
                     $"Time: {metrics[1]:F1}\n" +
                     $"Inside %: {metrics[2]:F1}\n" +
@@ -136,7 +131,7 @@ public class EndGame : MonoBehaviour
 
     void SetShipToFinalPosition(Collider other)
     {
-        if (ShowDebugsLog) debugText.text += "\nAterrizaje";
+        if (debugText != null) debugText.text += "\nAterrizaje";
 
         // Desparentar la nave
         other.transform.SetParent(null);
@@ -154,7 +149,7 @@ public class EndGame : MonoBehaviour
 
     float[] CalculatePerformanceMetrics()
     {
-        if (ShowDebugsLog) debugText.text += "\nCalculando Metricas...";
+        if (debugText != null) debugText.text += "\nCalculando Metricas...";
 
         if (OutOfTube) // Cuando que cuando vuelve a jugar se calcule el tiempo de esa partida
         {
@@ -205,7 +200,7 @@ public class EndGame : MonoBehaviour
         IDSession = SelectPatient.Instance.IDSession;
         sessionNumber = SelectPatient.Instance.CurrentSessionNumber;
 
-        if (ShowDebugsLog) // Mostrar los IDs para corroborar que se leyeron
+        if (debugText != null) // Mostrar los IDs para corroborar que se leyeron
         {
             debugText.text += "\nIDPx desde EndGame: " + IDPx;
             debugText.text += "\nIDSession desde EndGame: " + IDSession;
@@ -215,18 +210,18 @@ public class EndGame : MonoBehaviour
         // Buscar errores
         if (db == null)
         {
-            if (ShowDebugsLog) debugText.text += "\nERROR: Firestore no inicializado";
+            if (debugText != null) debugText.text += "\nERROR: Firestore no inicializado";
             return;
         }
 
         if (string.IsNullOrEmpty(IDPx))
         {
-            if (ShowDebugsLog) debugText.text += "\nERROR: IDPx inválido";
+            if (debugText != null) debugText.text += "\nERROR: IDPx inválido";
             return;
         }
 
         // Continuar si no hay errores
-        if (ShowDebugsLog) debugText.text += "\nEnviando datos a Firestore...";
+        if (debugText != null) debugText.text += "\nEnviando datos a Firestore...";
 
         // Organizar metricas como diccionario para Firestore
         var data = new Dictionary<string, object>
@@ -244,8 +239,8 @@ public class EndGame : MonoBehaviour
 
         await sessionRef.SetAsync(data).ContinueWithOnMainThread(task =>
         {
-            if (task.IsCompletedSuccessfully) if (ShowDebugsLog) debugText.text += "\nDatos guardados en Firestore";
-            else if (ShowDebugsLog) debugText.text += "\nERROR Firestore: " + task.Exception;
+            if (task.IsCompletedSuccessfully) if (debugText != null) debugText.text += "\nDatos guardados en Firestore";
+            else if (debugText != null) debugText.text += "\nERROR Firestore: " + task.Exception;
         });
 
         // Actualizar contador de sesiones completadas
@@ -260,11 +255,11 @@ public class EndGame : MonoBehaviour
 
             // Actualizar el campo SesionesCompletadas
             await patientRef.UpdateAsync("SesionesCompletadas", sessionNumber);
-            if (ShowDebugsLog) debugText.text += "\nSesiones completadas actualizado en firebase";
+            if (debugText != null) debugText.text += "\nSesiones completadas actualizado en firebase";
         }
         catch (Exception ex)
         {
-            if (ShowDebugsLog) debugText.text += "\n Error al actualizar contador: "+ ex.Message;
+            if (debugText != null) debugText.text += "\n Error al actualizar contador: "+ ex.Message;
         }
     }
 

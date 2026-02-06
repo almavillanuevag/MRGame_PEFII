@@ -68,7 +68,7 @@ public class SelectPatient : MonoBehaviour
                  }
                  else
                  {
-                     debugText.text += "\nNo se encontraron pacientes.";
+                     if(debugText !=null) debugText.text += "\nNo se encontraron pacientes.";
                      PatientsDropdown.AddOptions(new List<string> { "No hay IDs disponibles" }); // poner a prueba**
                      IDPx = null;
                  }
@@ -77,11 +77,11 @@ public class SelectPatient : MonoBehaviour
     public void OnSelectedPatient(int index)
     {
         if (index < 0 && index >= IDslist.Count)
-            debugText.text += "\nIndice Invalido";
+            if(debugText !=null) debugText.text += "\nIndice Invalido";
 
         // El IDPx es el Document ID correspondiente al índice seleccionado
         IDPx = IDslist[index];
-        debugText.text += "\nDocument ID seleccionado (IDPx): " + IDPx;
+        if(debugText !=null) debugText.text += "\nDocument ID seleccionado (IDPx): " + IDPx;
 
         GenerateIDSession();
     }
@@ -91,7 +91,7 @@ public class SelectPatient : MonoBehaviour
         // Validar que haya seleccionado un IDPx y desplegar si hubo error
         if (string.IsNullOrEmpty(IDPx))
         {
-            debugText.text += "\nSelecciona un paciente antes de iniciar.";
+            if(debugText !=null) debugText.text += "\nSelecciona un paciente antes de iniciar.";
             return;
         }
 
@@ -101,7 +101,7 @@ public class SelectPatient : MonoBehaviour
             // Validar y desplegar si hubo error
             if (task.IsFaulted || task.IsCanceled)
             {
-                debugText.text += "\nError al obtener datos del paciente " + IDPx + task.Exception;
+                if(debugText !=null) debugText.text += "\nError al obtener datos del paciente " + IDPx + task.Exception;
                 return;
             }
 
@@ -110,7 +110,7 @@ public class SelectPatient : MonoBehaviour
             // Validar y desplegar si hubo error
             if (!snapshot.Exists)
             {
-                debugText.text += "\nError al obtener datos del paciente " + IDPx + task.Exception;
+                if(debugText !=null) debugText.text += "\nError al obtener datos del paciente " + IDPx + task.Exception;
                 return;
             }
 
@@ -124,7 +124,7 @@ public class SelectPatient : MonoBehaviour
             string dateDDMMAA = System.DateTime.Now.ToString("ddMMyy");
             IDSession = $"SessionNum{CurrentSessionNumber:D3}-{dateDDMMAA}";
 
-            debugText.text += "\nID de sesión: " + IDSession + ". Completadas: " + CompletedSessions;
+            if(debugText !=null) debugText.text += "\nID de sesión: " + IDSession + ". Completadas: " + CompletedSessions;
         });
         
     }

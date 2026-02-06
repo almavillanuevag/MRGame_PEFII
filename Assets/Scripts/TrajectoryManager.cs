@@ -73,7 +73,6 @@ public class TrajectoryManager : MonoBehaviour
                 OutOfTube = true; // activamos flag para no sumar más hasta que vuelva a entrar
             }
         }
-        //debugText.text = "radio: " + radio + ". Errores: " + TotalError;
     }
 
     // Comparar punto del spline mas cercano a la Ship contra la pos de Ship -> minDist

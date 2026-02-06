@@ -54,7 +54,7 @@ public class ShipMovement : MonoBehaviour
     void GrabShip(GameObject shipObj) 
     {
         isHolding = true;
-        debugText.text += "\nColision con la mano: se pegó";
+        if(debugText !=null) debugText.text += "\nColision con la mano: se pegó";
 
         // posicionar y alinear con handpoint
         shipObj.transform.position = handpoint.transform.position;
@@ -80,6 +80,6 @@ public class ShipMovement : MonoBehaviour
         // Reactivar las interacciones de la mano
         HandGrabInteraction.SetActive(true);
 
-        debugText.text += "\nNave liberada";
+        if(debugText !=null) debugText.text += "\nNave liberada";
     }
 }

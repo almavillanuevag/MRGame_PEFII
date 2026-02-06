@@ -6,15 +6,15 @@ using UnityEngine.XR.OpenXR.Input;
 
 public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las puntas de los dedos para hand tracking
 {
-    // Asignar desde el Inspector
+    [Header("Asignar elementos para interacciones")]
     public OVRSkeleton ovrSkeletonL;
     public OVRSkeleton ovrSkeletonR;
     public SplineContainer trajectorySpline; // Scrpt de la trayectoria para calcular 
     public ShipMovement shipMovementL; // Script para obtener flag de que ya tomo la nave (comenzó el juego)
     public ShipMovement shipMovementR;
-
-    // Asignar un TMPro para ver mensajes en MR
     public TextMeshProUGUI debugText;
+
+    // --- Para funcionamiento interno ---
 
     // Parametros importantes que definir
     public float colliderRadius = 0.007f;
@@ -48,7 +48,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         fingerLayerID = LayerMask.NameToLayer(fingerLayer);
         if (fingerLayerID == -1) fingerLayerID = 0;
 
-        // Crear los objetos parent por mano que contendran los colliders
+        // Crear los objetos parent por mano que contendran los colliders -> modificar (que ya existan para poder interactuar con ellos)
         rightRoot = new GameObject("RightHandHapticColliders");
         leftRoot = new GameObject("LeftHandHapticColliders");
 
@@ -79,7 +79,7 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
         {
             // Reintentar cuando vuelva el tracking
             trackingReady = false;
-            debugText.text += "\nTracking perdido, esperando de nuevo...";
+            if (debugText != null) debugText.text += "\nTracking perdido, esperando de nuevo...";
             StartCoroutine(WaitForSkeletons());
             return;
         }
