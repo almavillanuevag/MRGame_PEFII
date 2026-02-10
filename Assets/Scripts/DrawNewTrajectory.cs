@@ -3,32 +3,44 @@ using Firebase.Firestore;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.TerrainTools;
+using TMPro;
 using Vector3 = UnityEngine.Vector3;
+/* 
+ * Notas a mejorar:
+ *  - Hacerlo para ambas manos al estilo de la nave: un collider trigger que cuando choque con la pelota se pegue y comience a grabar
+ *  - Ponerle un UI flotante a la pelota que de las instrucciones
+ *  - Intentarlo con otra forma de comenzar a dibujar (botones medio incomodo)
+ *  - Buscar un asset mas bonito para pincel
+ */
 
-public class DrawNewTrajectory : MonoBehaviour
+public class DrawNewTrajectory : MonoBehaviour 
 {
     [Header("Asignar elementos para interacciones")]
-    public OVRSkeleton ovrSkeleton; // Mano del terapeuta (izq o der)
-    public TMPro.TextMeshProUGUI debugText;
+    public OVRSkeleton ovrSkeleton; // Mano del terapeuta (derecha por mientras)                              **  CORREGIR!
+    public GameObject debugText;
+    public VisualizeTrajectorySpline visualizer;
 
     [Header("Objetos publicos para lectura")]
     // Listas de los puntos
     public List<Vector3> therapistFullTrajectoryWorld = new List<Vector3>();
+    public float radius;
+    public string IDTraj;
 
     // --- Variables para funcionamiento interno --
     bool trackingReady = false;
     Transform palmTransform;
     Transform brushSphere;
     readonly OVRSkeleton.BoneId boneId = OVRSkeleton.BoneId.XRHand_Palm;
+    
 
     // Para el muestreo
-    float sampleInterval = 0.1f;
+    float sampleInterval = 1/60f;
     float minDistance = 0.01f;
     bool drawing = false;
     Vector3 lastSamplePos;
     Coroutine samplingCoroutine;
     FirebaseFirestore db;
+    int CurrentTrajectory;
 
     // Para el render de la linea
     LineRenderer previewLine;
@@ -36,6 +48,8 @@ public class DrawNewTrajectory : MonoBehaviour
 
     private void Start()
     {
+        debugText.SetActive(false);
+
         // Buscar HandTracking
         StartCoroutine(WaitForSkeletons());
 
@@ -51,6 +65,7 @@ public class DrawNewTrajectory : MonoBehaviour
     private void Update()
     {
         if (!trackingReady) return;
+        TextMeshProUGUI log = debugText.GetComponent<TextMeshProUGUI>();
 
         // Si se pierde tracking o el skeleton deja de ser válido, reintentar
         if (ovrSkeleton == null || !ovrSkeleton.IsDataValid)
@@ -67,7 +82,7 @@ public class DrawNewTrajectory : MonoBehaviour
             palmTransform = FindPalmTransform();
             if (palmTransform == null)
             {
-                if (debugText != null) debugText.text = "No se encontró XRHand_Palm aún...";
+                if (debugText != null) log.text = "No se encontró XRHand_Palm aún...";
                 return;
             }
         }
@@ -75,7 +90,7 @@ public class DrawNewTrajectory : MonoBehaviour
         // Actualizar posicion del pincel
         if (palmTransform == null)
         {
-            if (debugText != null) debugText.text = "palmTransform es null";
+            if (debugText != null) log.text = "palmTransform es null";
             return;
         }
         brushSphere.position = palmTransform.position;
@@ -84,19 +99,19 @@ public class DrawNewTrajectory : MonoBehaviour
 
     private IEnumerator WaitForSkeletons()
     {
-        if (debugText != null) debugText.text = "Esperando hand tracking...";
+        TextMeshProUGUI log = debugText.GetComponent<TextMeshProUGUI>();
+        if (debugText != null) log.text = "Esperando hand tracking...";
 
         // Esperar skeleton + datos válidos
         while (ovrSkeleton == null || !ovrSkeleton.IsDataValid)
         {
-            if (debugText != null) debugText.text = "Esperando hand tracking...";
+            if (debugText != null) log.text = "Esperando hand tracking...";
             yield return null;
         }
 
         // Esperar bones
         while (ovrSkeleton.Bones == null || ovrSkeleton.Bones.Count == 0)
         {
-            Log("Aún no hay bones (null o count=0)...");
             yield return null;
         }
 
@@ -104,7 +119,6 @@ public class DrawNewTrajectory : MonoBehaviour
         palmTransform = FindPalmTransform();
         if (palmTransform == null)
         {
-            Log("No se encontró XRHand_Palm en este OVRSkeleton.");
             // No marcamos trackingReady, reintentamos
             yield return new WaitForSeconds(0.1f);
             StartCoroutine(WaitForSkeletons());
@@ -112,7 +126,6 @@ public class DrawNewTrajectory : MonoBehaviour
         }
 
         trackingReady = true;
-        Log("Hand tracking listo");
     }
 
     private Transform FindPalmTransform()
@@ -127,14 +140,12 @@ public class DrawNewTrajectory : MonoBehaviour
         return null;
     }
 
-    // --- Funciones para los botones del UI ---
-
-    // Botón comenzar a dibujar
-    public void StartDrawing()
+    // ---- Funciones para los botones del UI ----
+    public void StartDrawing() // Botón comenzar a dibujar
     {
         if (!trackingReady)
         {
-            Log("No se puede dibujar: hand tracking no listo.");
+            Log("No se puede dibujar: hand tracking no está listo");
             return;
         }
 
@@ -152,21 +163,22 @@ public class DrawNewTrajectory : MonoBehaviour
 
         if (samplingCoroutine != null) StopCoroutine(samplingCoroutine);
         samplingCoroutine = StartCoroutine(SampleCoroutine());
-
     }
 
-    // Botón finalizar de dibujar
-    public void StopDrawing()
+    
+    public void StopDrawing() // Botón finalizar de dibujar
     {
         if (!drawing) return;
         drawing = false;
         if (samplingCoroutine != null) StopCoroutine(samplingCoroutine);
         samplingCoroutine = null;
 
-        SaveToFirestore();
+        // Visualizarla
+        if (visualizer != null)
+            visualizer.BuildSplineFromRecordedTrajectory();
     }
 
-    private void SaveToFirestore()
+    public void SaveToFirestore()
     {
         if (db == null)
         {
@@ -183,41 +195,80 @@ public class DrawNewTrajectory : MonoBehaviour
             return;
         }
 
+        var patientRef = db.Collection("Pacientes").Document(idPx);
+
         if (therapistFullTrajectoryWorld.Count < 2)
         {
             Log("ERROR: Trayectoria insuficiente para guardar.");
             return;
         }
 
-        // Convertir Vector3 -> Firestore (array de maps)
-        List<Dictionary<string, object>> points = new List<Dictionary<string, object>>(therapistFullTrajectoryWorld.Count);
-        foreach (var p in therapistFullTrajectoryWorld)
+        // obtener el radio seleccionado y redondearlo (min de 1mm)
+        float radiusRaw = visualizer.tubeRadius;
+        float radiusRounded = Mathf.Round(radiusRaw * 1000f) / 1000f;
+        visualizer.splineExtrude.Radius = radiusRounded;
+        visualizer.splineExtrude.Rebuild();
+
+        radius = visualizer.tubeRadius;
+
+        db.RunTransactionAsync(async transaction =>
         {
-            points.Add(new Dictionary<string, object>
+            // Leer contador actual
+            var snap = await transaction.GetSnapshotAsync(patientRef);
+            long count = 0;
+            if(snap.Exists && snap.TryGetValue("TrayectoriasCompletadas", out long c))
+                count = c;
+
+            // Incrementar el contador en firebase
+            long next = count+1;
+            transaction.Update(patientRef, new Dictionary<string, object>
             {
-                { "x", p.x },
-                { "y", p.y },
-                { "z", p.z }
+                { "TrayectoriasCompletadas", next }
             });
-        }
 
-        Dictionary<string, object> docData = new Dictionary<string, object>
-        {
-            { "TrayectoriaCompleta", points },
-            { "CantidadPuntos", therapistFullTrajectoryWorld.Count },
-            { "FrecuenciaMuestreo", sampleInterval },
-            { "Tiempo", Timestamp.GetCurrentTimestamp() }
-        };
+            // Generar el IDTraj
+            string date = System.DateTime.Now.ToString("ddMMyy");
+            string idTraj = $"Trayectoria{next:D3}-{date}";
 
-        DocumentReference docRef = db.Collection("Pacientes")
-                                     .Document(idPx)
-                                     .Collection("Trayectorias")
-                                     .Document(); // autoID
+            // Ordenar puntos Vector3 en diccionario array de maps (formato compatible con firebase) para guardarlos
+            var pointsList = new List<Dictionary<string, object>>(therapistFullTrajectoryWorld.Count);
+            foreach (var p in therapistFullTrajectoryWorld)
+            {
+                pointsList.Add(new Dictionary<string, object>
+                {
+                    { "x", p.x },
+                    { "y", p.y },
+                    { "z", p.z }
+                });
+            }
 
-        docRef.SetAsync(docData).ContinueWithOnMainThread(task =>
+            var docData = new Dictionary<string, object>
+            {
+                { "TrayectoriaCompleta", pointsList },
+                { "Radio", (double)radius},
+                { "CantidadPuntos", therapistFullTrajectoryWorld.Count },
+                { "Tiempo", Timestamp.GetCurrentTimestamp() }
+            };
+
+            var trajRef = patientRef.Collection("Trayectorias").Document(idTraj);
+            transaction.Set(trajRef, docData);
+
+            return idTraj; // Regresar el IDTraj para seleccionarlo en el dropdown
+
+        }).ContinueWithOnMainThread(task =>        
         {
             if (task.IsCompletedSuccessfully)
-                Log("Trayectoria guardada en Firestore");
+            {
+                // Almacenar el ID de la trajectoria en la instancia de SelectPatient
+                IDTraj = task.Result;
+                Log("Trayectoria guardada en Firestore: ID " + IDTraj);
+
+                if (SelectPatient.Instance != null)
+                {
+                    SelectPatient.Instance.IDTraj = IDTraj;
+                    SelectPatient.Instance.LoadingTrajectories(IDTraj);
+                }     
+            }
             else
                 Log("ERROR guardando Firestore: " + task.Exception);
         });
@@ -272,12 +323,22 @@ public class DrawNewTrajectory : MonoBehaviour
         previewLine.positionCount = therapistFullTrajectoryWorld.Count;
         for (int i = 0; i < therapistFullTrajectoryWorld.Count; i++)
             previewLine.SetPosition(i, therapistFullTrajectoryWorld[i]);
+    } 
+
+    public List<Vector3> GetFullTrajectory() // Para leerlo desde el visualizador
+    { 
+        return therapistFullTrajectoryWorld;
     }
 
     private void Log(string msg)
     {
         Debug.Log(msg);
-        if (debugText != null) debugText.text += "\n" + msg;
+        if (debugText != null)
+        {
+            debugText.SetActive(true);
+            TextMeshProUGUI log = debugText.GetComponent<TextMeshProUGUI>();
+            log.text = msg;
+        }
     }
 
 }

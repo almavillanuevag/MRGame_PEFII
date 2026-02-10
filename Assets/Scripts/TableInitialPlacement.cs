@@ -19,7 +19,7 @@ public class TableInitialPlacement : MonoBehaviour
     Vector3 bottomCenter;
     Vector3 tableTopCenter;
 
-    private void Start()
+    public void SetTrajectoryOnTable()
     {
         if (splineContainer == null)
             splineContainer = GetComponent<SplineContainer>();
@@ -122,11 +122,11 @@ public class TableInitialPlacement : MonoBehaviour
         Vector3 lastKnotWorld = splineContainer.transform.TransformPoint(spline[knotCount - 1].Position);
 
         // Proyectar ambos puntos al plano superior de la mesa
-        firstKnotWorld.y = tableTopCenter.y + yLift;
-        lastKnotWorld.y = tableTopCenter.y + yLift;
+        //firstKnotWorld.y = tableTopCenter.y + yLift;
+        //lastKnotWorld.y = tableTopCenter.y + yLift;
 
         // Ajustes de offsets finos
-        lastKnotWorld += new Vector3(0f, -0.01f, 0.005f);
+        // lastKnotWorld += new Vector3(0f, -0.01f, 0.005f);
 
         if (shipSpawn != null)
         {

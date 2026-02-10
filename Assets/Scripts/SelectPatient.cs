@@ -1,23 +1,32 @@
-using TMPro;
-using UnityEngine;
 using Firebase.Extensions;
 using Firebase.Firestore;
 using System.Collections.Generic;
+using TMPro;
+using UnityEngine;
+using UnityEngine.Splines;
 
 public class SelectPatient : MonoBehaviour
 {
-    FirebaseFirestore firestore;
+    [Header("Asignar elementos para interacciones")]
+    public TMP_Dropdown PatientsDropdown;
+    public TMP_Dropdown TrajectoriesDropdown;
+    public GameObject spline;
+    public TextMeshProUGUI debugText; // Para Display Debugs
 
+
+    [Header("Elementos publicos para lectura")]
     public static SelectPatient Instance;
     public string IDSession;
     public string IDPx; // Aquí se guardará el Document ID seleccionado
-    public TMP_Dropdown PatientsDropdown;
-    public TextMeshProUGUI debugText; // Para Display Debugs
-
+    public string IDTraj; // Aquí se guardará el Document ID de la trayectoria dentro del paciente
     public int CurrentSessionNumber;
+    public int CurrentTrajectory;
 
-    // Guarda los Document IDs de los documentos
-    private List<string> IDslist = new List<string>();
+    // -- Variables para funcionamiento interno --
+    FirebaseFirestore db;
+    private List<string> IDsPxlist = new List<string>();    // Guardar los Document IDs de los documentos
+    private List<string> IDsTrajlist = new List<string>();
+    SplineExtrude splineExtrude;
 
     private void Awake()
     {
@@ -34,27 +43,29 @@ public class SelectPatient : MonoBehaviour
 
     private void Start()
     {
-        firestore = FirebaseFirestore.DefaultInstance;
-        LoadingPatients(); // puedo poner despues un boton de refresh!
+        db = FirebaseFirestore.DefaultInstance;
+        if (TrajectoriesDropdown != null)
+            TrajectoriesDropdown.gameObject.SetActive(false);
+        LoadingPatients(); // puedo poner despues un boton de refresh! ------------------------------------------------ ** PENDIENTE    
     }
 
     public void LoadingPatients()
     {
         PatientsDropdown.onValueChanged.RemoveAllListeners();
 
-        firestore.Collection("Pacientes").GetSnapshotAsync().ContinueWithOnMainThread(task =>
+        db.Collection("Pacientes").GetSnapshotAsync().ContinueWithOnMainThread(task =>
              {
                  QuerySnapshot snapshot = task.Result;
                  List<string> DropdownOptions = new List<string>();
 
                  PatientsDropdown.ClearOptions();
-                 IDslist.Clear();
+                 IDsPxlist.Clear();
 
                  foreach (DocumentSnapshot doc in snapshot.Documents)
                  {
                      string documentId = doc.Id;
                      DropdownOptions.Add(documentId);
-                     IDslist.Add(documentId);
+                     IDsPxlist.Add(documentId);
                  }
 
                  if (DropdownOptions.Count > 0)
@@ -68,7 +79,7 @@ public class SelectPatient : MonoBehaviour
                  }
                  else
                  {
-                     if(debugText !=null) debugText.text += "\nNo se encontraron pacientes.";
+                     if (debugText != null) debugText.text += "\nNo se encontraron pacientes.";
                      PatientsDropdown.AddOptions(new List<string> { "No hay IDs disponibles" }); // poner a prueba**
                      IDPx = null;
                  }
@@ -76,14 +87,26 @@ public class SelectPatient : MonoBehaviour
     }
     public void OnSelectedPatient(int index)
     {
-        if (index < 0 && index >= IDslist.Count)
-            if(debugText !=null) debugText.text += "\nIndice Invalido";
+        if (index < 0 || index >= IDsPxlist.Count)
+            if(debugText !=null) debugText.text += "\nIndice Invalido en PatientsDropdown";
 
         // El IDPx es el Document ID correspondiente al índice seleccionado
-        IDPx = IDslist[index];
+        IDPx = IDsPxlist[index];
         if(debugText !=null) debugText.text += "\nDocument ID seleccionado (IDPx): " + IDPx;
 
         GenerateIDSession();
+
+        IDTraj = null;
+
+        if (TrajectoriesDropdown != null)
+        {
+            TrajectoriesDropdown.gameObject.SetActive(true);
+            LoadingTrajectories(); 
+        }
+        else
+        {
+            Log("TrajectoriesDropdown no asignado.");
+        }
     }
 
     void GenerateIDSession() 
@@ -95,7 +118,7 @@ public class SelectPatient : MonoBehaviour
             return;
         }
 
-        DocumentReference pacienteRef = firestore.Collection("Pacientes").Document(IDPx);
+        DocumentReference pacienteRef = db.Collection("Pacientes").Document(IDPx);
         pacienteRef.GetSnapshotAsync().ContinueWithOnMainThread(task =>
         {
             // Validar y desplegar si hubo error
@@ -128,9 +151,80 @@ public class SelectPatient : MonoBehaviour
         });
         
     }
-    public void Play()
+
+    public void LoadingTrajectories(string selectIdTraj = null)
     {
-        // Ahorita se estan seleccionando al momento de ponerlo - para despues (creo)
+        if (TrajectoriesDropdown == null) { Log("TrajectoriesDropdown no asignado."); return; }
+        if (string.IsNullOrEmpty(IDPx)) { Log("IDPx vacío. No puedo cargar trayectorias."); return; }
+
+        TrajectoriesDropdown.onValueChanged.RemoveAllListeners();
+
+        var trajectoryRef = db.Collection("Pacientes").Document(IDPx).Collection("Trayectorias");
+
+        trajectoryRef.GetSnapshotAsync().ContinueWithOnMainThread(task =>
+        {
+            if (task.IsFaulted || task.IsCanceled)
+            {
+                Log("Error cargando trayectorias: " + task.Exception);
+                return;
+            }
+
+            QuerySnapshot snapshot = task.Result;
+
+            TrajectoriesDropdown.ClearOptions();
+            IDsTrajlist.Clear();
+
+            List<string> options = new List<string>();
+            foreach (DocumentSnapshot doc in snapshot.Documents)
+            {
+                options.Add(doc.Id);
+                IDsTrajlist.Add(doc.Id);
+            }
+
+            if (options.Count > 0)
+            {
+                TrajectoriesDropdown.AddOptions(options);
+                TrajectoriesDropdown.onValueChanged.AddListener(OnSelectedTrajectory);
+                TrajectoriesDropdown.value = 0;
+                TrajectoriesDropdown.RefreshShownValue();
+
+                int idxToSelect = 0;
+                if (!string.IsNullOrEmpty(selectIdTraj))
+                {
+                    int found = IDsTrajlist.IndexOf(selectIdTraj);
+                    if (found >= 0) idxToSelect = found;
+                }
+
+                TrajectoriesDropdown.value = idxToSelect;
+                TrajectoriesDropdown.RefreshShownValue();
+                OnSelectedTrajectory(idxToSelect);
+            }
+            else
+            {
+                Log("No se encontraron trayectorias para este paciente.");
+                TrajectoriesDropdown.AddOptions(new List<string> { "No hay trayectorias disponibles" });
+                TrajectoriesDropdown.RefreshShownValue();
+                IDTraj = null;
+            }
+        });
+    }
+
+
+    public void OnSelectedTrajectory(int index)
+    {
+        if (index < 0 || index >= IDsTrajlist.Count)
+            if (debugText != null) debugText.text += "\nIndice Invalido";
+
+        // El IDPx es el Document ID correspondiente al índice seleccionado
+        IDTraj = IDsTrajlist[index];
+
+        if (debugText != null) debugText.text += "\nDocument ID seleccionado (IDPx): " + IDPx;
+    }
+
+    void Log(string msg)
+    {
+        Debug.Log(msg);
+        if (debugText != null) debugText.text += "\n" + msg;
     }
 }
 

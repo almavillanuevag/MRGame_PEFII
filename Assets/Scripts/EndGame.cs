@@ -223,14 +223,21 @@ public class EndGame : MonoBehaviour
         // Continuar si no hay errores
         if (debugText != null) debugText.text += "\nEnviando datos a Firestore...";
 
+        // Configurar la informacion antes de guardarla
+        var idTraj = SelectPatient.Instance.IDTraj;
+        float totalTimeRounded = Mathf.Round(metrics[1] * 1000f) / 1000f;
+        float InsideTimePercentageRounded = Mathf.Round(metrics[2] * 1000f) / 1000f;
+        float radioRounded = Mathf.Round(metrics[2] * 1000f) / 1000f;
+
         // Organizar metricas como diccionario para Firestore
         var data = new Dictionary<string, object>
         {
+            { "Trayectoria", idTraj },
             { "DateTime", Timestamp.GetCurrentTimestamp() },
             { "TotalErrors", (int)metrics[0] },
-            { "TotalTime", metrics[1] },
-            { "InsideTimePercentage", metrics[2] },
-            { "radio", metrics[3] },
+            { "TotalTime", totalTimeRounded },
+            { "InsideTimePercentage", InsideTimePercentageRounded },
+            { "radio", radioRounded},
             { "stars", (int)metrics[4] }
         };
 

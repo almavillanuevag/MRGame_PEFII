@@ -117,18 +117,18 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
             colliderObjects[i].layer = fingerLayerID;
 
             // Visualizarlas (opcional, quitar despues)
-            var renderer = colliderObjects[i].GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                Shader sh = Shader.Find("Universal Render Pipeline/Lit");
-                if (sh == null) sh = Shader.Find("Standard");
-                var mat = new Material(sh);
-                mat.color = Color.gray;
-                renderer.material = mat;
+            //var renderer = colliderObjects[i].GetComponent<Renderer>();
+            //if (renderer != null)
+            //{
+            //    Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+            //    if (sh == null) sh = Shader.Find("Standard");
+            //    var mat = new Material(sh);
+            //    mat.color = Color.gray;
+            //    renderer.material = mat;
 
-                renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
-            }
+            //    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            //    renderer.receiveShadows = false;
+            //}
 
             // Escalar el diámetro 
             float diameter = colliderRadius * 2f;

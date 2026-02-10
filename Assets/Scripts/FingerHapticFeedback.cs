@@ -19,7 +19,7 @@ public class FingerHapticFeedback : MonoBehaviour
     // Configuración del render visual
     LineRenderer lineR;
     float lineWidth = 0.005f;
-    public bool viewRender = true;
+    public bool viewRender = false; // Desactivar false si quiero que no se vea las lineas
 
     // -- Variables para uso interno --
     PositionType handPosition;
@@ -76,7 +76,7 @@ public class FingerHapticFeedback : MonoBehaviour
         }
 
         // Asegurar que no vibre si algo está mal
-        if (trajectorySpline == null || lineR == null)
+        if (trajectorySpline == null)
         {
             StopVibration();
             return;
@@ -95,6 +95,9 @@ public class FingerHapticFeedback : MonoBehaviour
 
         distanceVectorFromSpline = CalculateDistanceFromSpline(fingerWorldPos, fingerLocalPos);
         distanceFromSpline = distanceVectorFromSpline.magnitude;
+
+        // Problema del dedo pulgar izquierdo
+        if (gameObject.name == "LeftSphere_0") { StopVibration(); return; }
 
         // Retroalimentacion haptica por zonas 
 
