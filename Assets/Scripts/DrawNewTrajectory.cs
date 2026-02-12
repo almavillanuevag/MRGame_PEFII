@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
+
 using Vector3 = UnityEngine.Vector3;
 /* 
  * Notas a mejorar:
@@ -18,9 +18,12 @@ public class DrawNewTrajectory : MonoBehaviour
     [Header("Asignar elementos para interacciones")]
     public GameObject debugText;
     public VisualizeTrajectorySpline visualizer;
+    public Transform brushPoint; // punto donde dibujas
+    public TrajectoryManager previewSpline; // punto donde dibujas
 
     [Header("UI Flujo Grabación")]
     public GameObject panelIdle;        // Botón "Iniciar"
+    public GameObject panelWaiting;     // Texto de "Toma el pincel para comenzar a dibujar"
     public GameObject panelCountdown;   // Texto 3..2..1
     public GameObject panelPost;        // Slider + Guardar/Regrabar
 
@@ -36,9 +39,8 @@ public class DrawNewTrajectory : MonoBehaviour
     // --- Variables para funcionamiento interno --
     bool trackingReady = false;
     Transform palmTransform;
-    Transform brushSphere;
     OVRSkeleton ovrSkeleton;
-    readonly OVRSkeleton.BoneId boneId = OVRSkeleton.BoneId.XRHand_Palm;
+    readonly OVRSkeleton.BoneId boneId = OVRSkeleton.BoneId.XRHand_MiddleIntermediate;
 
     // Para el muestreo
     float sampleInterval = 1/60f;
@@ -52,16 +54,17 @@ public class DrawNewTrajectory : MonoBehaviour
     // Para el render de la linea
     LineRenderer previewLine;
     float lineWidth = 0.005f;
+    Vector3 offset = new Vector3(0,-0.025f,-0.025f);
 
     // Para iniciar las grabaciones UI
     float countdownSeconds = 3f;
     float recordSeconds = 5f;
-    enum DrawState { Idle, Countdown, Recording, Post }
+    enum DrawState { Idle, Waiting, Countdown, Recording, Post }
     DrawState state = DrawState.Idle;
     Coroutine flowCoroutine;
 
 
-    private void Start()
+    private void Start() 
     {
         // Buscar HandTracking
         StartCoroutine(WaitForSkeletons());
@@ -69,18 +72,14 @@ public class DrawNewTrajectory : MonoBehaviour
         // Inicializar firestore
         db = FirebaseFirestore.DefaultInstance;
 
-        // Definir el transform del GO
-        brushSphere = gameObject.GetComponent<Transform>();
-
         // Configuracion del line render
         SetupLineRenderer();
 
-        // 
         SetState(DrawState.Idle);
-        gameObject.GetComponent<MeshRenderer>().enabled = false;
+        gameObject.GetComponentInChildren<MeshRenderer>().enabled = false;
     }
 
-    void OnTriggerEnter(Collider other)
+    void OnTriggerEnter(Collider other) // O VER SI LO HAGO CON GRABBABLE ------------------*
     {
         if (!other.CompareTag("HandCollider")) return;
         if (isHolding) return;
@@ -95,7 +94,7 @@ public class DrawNewTrajectory : MonoBehaviour
 
         ovrSkeleton = skeleton;
 
-        // Encontrar palm una vez 
+        // Encontrar el punto de la mano que chocó una vez 
         palmTransform = FindPalmTransform();
         if (palmTransform == null)
         {
@@ -105,6 +104,14 @@ public class DrawNewTrajectory : MonoBehaviour
         }
         else trackingReady = true;
         isHolding = true;
+
+        // Para comenzar a grabar si ya sujeto el pincel en el estado Waiting
+        if (isHolding && trackingReady && state == DrawState.Waiting)
+        {
+            // Si ya hay un flujo corriendo, lo cancelamos
+            if (flowCoroutine != null) StopCoroutine(flowCoroutine);
+            flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
+        }
     }
 
     void Update()
@@ -127,7 +134,7 @@ public class DrawNewTrajectory : MonoBehaviour
         }
 
         // Actualizar posicion del pincel
-        transform.position = palmTransform.position;
+        transform.position = palmTransform.position + offset;
         transform.rotation = palmTransform.rotation;
     }
 
@@ -217,14 +224,15 @@ public class DrawNewTrajectory : MonoBehaviour
                 // Almacenar el ID de la trajectoria en la instancia de SelectPatient
                 IDTraj = task.Result;
                 Log("Trayectoria guardada en Firestore: ID " + IDTraj);
-                SetState(DrawState.Idle);
-                gameObject.GetComponent<MeshRenderer>().enabled = false;
+                gameObject.GetComponentInChildren<MeshRenderer>().enabled = false;
 
                 if (SelectPatient.Instance != null)
                 {
                     SelectPatient.Instance.IDTraj = IDTraj;
                     SelectPatient.Instance.LoadingTrajectories(IDTraj);
                 }
+
+                SetState(DrawState.Idle);
             }
             else
                 Log("ERROR guardando Firestore: " + task.Exception);
@@ -233,16 +241,21 @@ public class DrawNewTrajectory : MonoBehaviour
 
     public void StartRecordingFlow() // Botón iniciar grabación
     {
-        gameObject.GetComponent<MeshRenderer>().enabled = true;
-        if (!trackingReady)
+        SetState(DrawState.Waiting);
+        // Activar el pincel
+        gameObject.GetComponentInChildren<MeshRenderer>().enabled = true;
+
+        // solo comenzar a grabar si ya tiene el pincel en la mano
+        if (isHolding && trackingReady)
         {
-            Log("Sujeta el pincel y vuelve a intentar");
-            return;
+            // Si ya hay un flujo corriendo, lo cancelamos
+            if (flowCoroutine != null) StopCoroutine(flowCoroutine);
+            flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
         }
 
-        // Si ya hay un flujo corriendo, lo cancelamos
-        if (flowCoroutine != null) StopCoroutine(flowCoroutine);
-        flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
+        // Borrar la previsualizacion del spline pasado
+        previewSpline.ClearSplinePreviewVisual();
+
     }
     
     public void RetryRecording() // Botón volver a grabar
@@ -252,6 +265,7 @@ public class DrawNewTrajectory : MonoBehaviour
         StopDrawing();
         therapistFullTrajectoryWorld.Clear();
         if (previewLine != null) previewLine.positionCount = 0;
+        visualizer.splineExtrude.enabled = false;
         flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
     }
 
@@ -316,7 +330,7 @@ public class DrawNewTrajectory : MonoBehaviour
         if (previewLine != null)
             previewLine.positionCount = 0;
 
-        lastSamplePos = brushSphere.position;
+        lastSamplePos = brushPoint.position;
 
         // Guardar el primer punto para que siempre incluya inicio
         therapistFullTrajectoryWorld.Add(lastSamplePos);
@@ -342,7 +356,7 @@ public class DrawNewTrajectory : MonoBehaviour
     {
         while (drawing)
         {
-            Vector3 pos = brushSphere.position;
+            Vector3 pos = brushPoint.position;
             if (Vector3.Distance(pos, lastSamplePos) >= minDistance)
             {
                 therapistFullTrajectoryWorld.Add(pos);
@@ -370,7 +384,7 @@ public class DrawNewTrajectory : MonoBehaviour
         Material mat = new Material(sh);
 
         // Ajustes para que la línea brille y se vea
-        mat.color = Color.green;
+        mat.color = Color.cyan;
 
         // Asignar material
         previewLine.material = mat;
@@ -436,6 +450,7 @@ public class DrawNewTrajectory : MonoBehaviour
         state = newState;
 
         if (panelIdle != null) panelIdle.SetActive(state == DrawState.Idle);
+        if (panelWaiting != null) panelWaiting.SetActive(state == DrawState.Waiting);
         if (panelCountdown != null) panelCountdown.SetActive(state == DrawState.Countdown || state == DrawState.Recording);
         if (panelPost != null) panelPost.SetActive(state == DrawState.Post);
     }

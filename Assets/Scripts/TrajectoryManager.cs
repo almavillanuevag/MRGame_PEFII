@@ -12,11 +12,13 @@ public class TrajectoryManager : MonoBehaviour
     public Transform Ship;
     public TMPro.TextMeshProUGUI debugText;
     public TableInitialPlacement tableInitialPlacement;
+    public Material tubeMaterial;
 
     [Header("Spline Visual")]
     public int knotCount = 15;
     public SplineContainer KnotsSpline;
     public SplineExtrude splineExtrude;
+    public bool isVisualizer = false;
 
     [Header("Tubo (juego)")]
     public float radio;
@@ -30,6 +32,9 @@ public class TrajectoryManager : MonoBehaviour
     bool OutOfTube = false;
     Color Green = new Color(0, 1, 0, 0.5f);
     Color Red = new Color(1f, 0, 0, 0.5f);
+    string _lastTraj;
+    string _lastPx;
+    private Coroutine _loadCoroutine;
 
     FirebaseFirestore db;
 
@@ -43,14 +48,52 @@ public class TrajectoryManager : MonoBehaviour
 
     private void Start()
     {
-        StartCoroutine(LoadingTrajectorySpline());
+        string idPx = SelectPatient.Instance.IDPx;
+        string idTraj = SelectPatient.Instance.IDTraj;
+        StartCoroutine(LoadingTrajectorySpline(idPx, idTraj));
     }
 
     private void Update()
     {
         if (KnotsSpline == null || splineExtrude == null || Ship == null) return;
 
+
         radio = splineExtrude.Radius;
+
+
+        // Para cuando solo quieras visualizar la trayectoria seleccionada
+        if (isVisualizer)
+        {
+            // Ponerle un color azulin
+            if (tubeMaterial != null)
+            {
+                MeshRenderer meshRenderer = gameObject.GetComponent<MeshRenderer>();
+                if (meshRenderer == null)
+                    meshRenderer = gameObject.AddComponent<MeshRenderer>();
+
+                meshRenderer.material = tubeMaterial;
+            }
+
+            // Ver si cambio el paciente o la trayectoria
+            string traj = SelectPatient.Instance.IDTraj;
+            string px = SelectPatient.Instance.IDPx;
+            if (!string.IsNullOrEmpty(px) && !string.IsNullOrEmpty(traj))
+            {
+                if (px != _lastPx || traj != _lastTraj)
+                {
+                    _lastPx = px;
+                    _lastTraj = traj;
+
+                    ClearSplinePreviewVisual();
+                    if (_loadCoroutine != null) StopCoroutine(_loadCoroutine);
+                    _loadCoroutine = StartCoroutine(LoadingTrajectorySpline(px, traj));
+                }
+            }
+            return;
+        }
+
+        // Gameplay 
+        
 
         distance = ShipDistanceFromSpline(Ship.position, KnotsSpline);
 
@@ -80,7 +123,22 @@ public class TrajectoryManager : MonoBehaviour
         }
     }
 
-    IEnumerator LoadingTrajectorySpline()
+    public void ClearSplinePreviewVisual()
+    {
+        if (KnotsSpline != null)
+        {
+            var spline = KnotsSpline.Spline;
+            spline.Clear();
+        }
+
+        if (splineExtrude != null)
+        {
+            splineExtrude.enabled = false;
+            splineExtrude.Rebuild(); 
+        }
+    }
+
+    IEnumerator LoadingTrajectorySpline(string idPx, string idTraj)
     {
         // Esperar a que exista SelectPatient y que ya haya selección válida
         while (SelectPatient.Instance == null)
@@ -92,8 +150,11 @@ public class TrajectoryManager : MonoBehaviour
         while (string.IsNullOrEmpty(SelectPatient.Instance.IDTraj))
             yield return null;
 
-        string idPx = SelectPatient.Instance.IDPx;
-        string idTraj = SelectPatient.Instance.IDTraj;
+        if (idPx == null || idTraj== null) 
+        {
+            idPx = SelectPatient.Instance.IDPx;
+            idTraj = SelectPatient.Instance.IDTraj;
+        }
 
         Log($"Cargando trayectoria seleccionada: {idTraj} (Paciente: {idPx})");
 
@@ -118,6 +179,30 @@ public class TrajectoryManager : MonoBehaviour
                 return;
             }
 
+            // Leer el radio guardado
+            double savedRadiusD = 0.0;
+            bool hasRadius = snap.TryGetValue("Radio", out savedRadiusD);
+
+            if (hasRadius && splineExtrude != null)
+            {
+                float savedRadius = (float)savedRadiusD;
+
+                // (Opcional pero recomendado) Clamp de seguridad
+                savedRadius = Mathf.Clamp(savedRadius, 0.001f, 0.5f);
+
+                splineExtrude.Radius = savedRadius;
+                radio = savedRadius;
+
+                Log($"Radio cargado desde Firestore: {savedRadius:0.000} m");
+            }
+            else
+            {
+                // Si no hay radio (trayectorias viejas), mantiene el default actual
+                if (splineExtrude != null) radio = splineExtrude.Radius;
+                Log("Aviso: No se encontró 'Radio' en Firestore. Usando radio por defecto.");
+            }
+            
+            // Leer el vector de trayectoria
             List<object> raw;
             if (!snap.TryGetValue("TrayectoriaCompleta", out raw))
             {
