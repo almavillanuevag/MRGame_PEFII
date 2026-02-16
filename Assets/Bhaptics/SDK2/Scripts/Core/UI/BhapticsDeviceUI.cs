@@ -211,6 +211,7 @@ namespace Bhaptics.SDK2
             }
 
             BhapticsLibrary.Ping(device);
+            Debug.Log(device.DeviceName);
         }
 
         private void ToLeft()

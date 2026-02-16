@@ -6,9 +6,10 @@ using UnityEngine.Splines;
 public class TableInitialPlacement : MonoBehaviour
 {
     [Header("Elementos para interacciones")]
-    public GameObject shipSpawn;          
+    public GameObject shipSpawn;
     public GameObject planetEnd;
-    public TextMeshProUGUI debugText; // para debug
+    public TextMeshProUGUI debugText;
+    public Transform referencePoint; // Si se asigna, elige la mesa TABLE más cercana a este punto
 
     // Variables para funcionamiento interno
     float yLift = 0.04f;
@@ -45,17 +46,36 @@ public class TableInitialPlacement : MonoBehaviour
 
         // Colocar la nave en el inicio y el planeta en el final
         PlaceShipAndPlanetFromKnots(tableTopCenter);
-        
+
     }
 
     void PlaceTrajectoryOnTable()
     {
         // Buscar si existe el Anchor TABLE
+        float bestDist = Mathf.Infinity;
+
         foreach (var anchor in room.Anchors)
         {
             Log($"Anchor: {anchor.Label}");
             if (anchor.Label == MRUKAnchor.SceneLabels.TABLE)
-                tableAnchor = anchor;
+            {
+                // Si NO hay referencePoint: tomar la primera mesa encontrada
+                if (referencePoint == null)
+                {
+                    if (tableAnchor == null)
+                        tableAnchor = anchor;
+                }
+                // Si existe el referencePoint elegir la mesa más cercana a ese punto
+                else
+                {
+                    float d = Vector3.Distance(referencePoint.position, anchor.transform.position);
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        tableAnchor = anchor;
+                    }
+                }
+            }
         }
 
         if (tableAnchor == null)
@@ -120,13 +140,6 @@ public class TableInitialPlacement : MonoBehaviour
 
         Vector3 firstKnotWorld = splineContainer.transform.TransformPoint(spline[0].Position);
         Vector3 lastKnotWorld = splineContainer.transform.TransformPoint(spline[knotCount - 1].Position);
-
-        // Proyectar ambos puntos al plano superior de la mesa
-        //firstKnotWorld.y = tableTopCenter.y + yLift;
-        //lastKnotWorld.y = tableTopCenter.y + yLift;
-
-        // Ajustes de offsets finos
-        // lastKnotWorld += new Vector3(0f, -0.01f, 0.005f);
 
         if (shipSpawn != null)
         {

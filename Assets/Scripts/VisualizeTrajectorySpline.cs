@@ -8,7 +8,6 @@ using UnityEngine.UI;
 public class VisualizeTrajectorySpline : MonoBehaviour
 {
     [Header("Asignar elementos para interacciones")]
-    public DrawNewTrajectory sourceTrajectory;
     public TextMeshProUGUI debugText;
     public Slider radiusSlider;
     public TextMeshProUGUI radiusLabel;
@@ -92,17 +91,10 @@ public class VisualizeTrajectorySpline : MonoBehaviour
         if (radiusLabel != null)
             radiusLabel.text = $"Radio: {value*100:F3} cm";
     }
-
     
-    public void BuildSplineFromRecordedTrajectory() // Llamar esto al terminar la grabación
+    public void BuildSplineFromRecordedTrajectory(List<Vector3> fullTrajectory) // Llamar esto al terminar la grabación
     {
-        if (sourceTrajectory == null)
-        {
-            Log("No hay referencia a DrawNewTrajectory.");
-            return;
-        }
-
-        List<Vector3> full = sourceTrajectory.GetFullTrajectory();
+        List<Vector3> full = fullTrajectory;
         if (full == null || full.Count < 2)
         {
             Log("Trayectoria insuficiente para generar spline.");

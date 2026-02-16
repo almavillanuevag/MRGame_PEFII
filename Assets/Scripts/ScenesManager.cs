@@ -10,6 +10,6 @@ public class ScenesManager : MonoBehaviour
 
     public void CreateTrajectory()
     {
-        SceneManager.LoadScene("Dibujos1");
+        SceneManager.LoadScene("Dibujos2");
     }
 }

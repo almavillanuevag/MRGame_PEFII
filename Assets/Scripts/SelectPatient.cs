@@ -10,7 +10,6 @@ public class SelectPatient : MonoBehaviour
     [Header("Asignar elementos para interacciones")]
     public TMP_Dropdown PatientsDropdown;
     public TMP_Dropdown TrajectoriesDropdown;
-    public GameObject spline;
     public TextMeshProUGUI debugText; // Para Display Debugs
 
 
@@ -26,7 +25,6 @@ public class SelectPatient : MonoBehaviour
     FirebaseFirestore db;
     private List<string> IDsPxlist = new List<string>();    // Guardar los Document IDs de los documentos
     private List<string> IDsTrajlist = new List<string>();
-    SplineExtrude splineExtrude;
 
     private void Awake()
     {
@@ -208,7 +206,6 @@ public class SelectPatient : MonoBehaviour
             }
         });
     }
-
 
     public void OnSelectedTrajectory(int index)
     {

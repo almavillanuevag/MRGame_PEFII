@@ -13,6 +13,8 @@ public class TrajectoryManager : MonoBehaviour
     public TMPro.TextMeshProUGUI debugText;
     public TableInitialPlacement tableInitialPlacement;
     public Material tubeMaterial;
+    public Material Green;
+    public Material Red;
 
     [Header("Spline Visual")]
     public int knotCount = 15;
@@ -30,8 +32,6 @@ public class TrajectoryManager : MonoBehaviour
     public float TotalError = -1;
 
     bool OutOfTube = false;
-    Color Green = new Color(0, 1, 0, 0.5f);
-    Color Red = new Color(1f, 0, 0, 0.5f);
     string _lastTraj;
     string _lastPx;
     private Coroutine _loadCoroutine;
@@ -55,13 +55,10 @@ public class TrajectoryManager : MonoBehaviour
 
     private void Update()
     {
-        if (KnotsSpline == null || splineExtrude == null || Ship == null) return;
-
-
+        if (KnotsSpline == null || splineExtrude == null) return;
         radio = splineExtrude.Radius;
 
-
-        // Para cuando solo quieras visualizar la trayectoria seleccionada
+        //// Para cuando solo quieras visualizar la trayectoria seleccionada
         if (isVisualizer)
         {
             // Ponerle un color azulin
@@ -93,18 +90,18 @@ public class TrajectoryManager : MonoBehaviour
         }
 
         // Gameplay 
-        
+        if (Ship == null) return;
 
         distance = ShipDistanceFromSpline(Ship.position, KnotsSpline);
 
         if (distance <= radio)
         {
-            GetComponent<MeshRenderer>().material.color = Green;
+            GetComponent<MeshRenderer>().material = Green;
             if (OutOfTube) OutOfTube = false;
         }
         else
         {
-            GetComponent<MeshRenderer>().material.color = Red;
+            GetComponent<MeshRenderer>().material = Red;
 
             if (!OutOfTube)
             {
@@ -122,6 +119,25 @@ public class TrajectoryManager : MonoBehaviour
             }
         }
     }
+
+    float ShipDistanceFromSpline(Vector3 shipPos, SplineContainer splineContainer)
+    {
+        float steps = 100f;
+        float minDist = Mathf.Infinity;
+
+        for (float i = 0; i <= steps; i++)
+        {
+            float t = i / steps;
+            float3 p = splineContainer.EvaluatePosition(t);
+            Vector3 splineDot = new Vector3(p.x, p.y, p.z);
+
+            float d = Vector3.Distance(shipPos, splineDot);
+            if (d < minDist) minDist = d;
+        }
+
+        return minDist;
+    }
+
 
     public void ClearSplinePreviewVisual()
     {
@@ -150,7 +166,7 @@ public class TrajectoryManager : MonoBehaviour
         while (string.IsNullOrEmpty(SelectPatient.Instance.IDTraj))
             yield return null;
 
-        if (idPx == null || idTraj== null) 
+        if (idPx == null || idTraj == null)
         {
             idPx = SelectPatient.Instance.IDPx;
             idTraj = SelectPatient.Instance.IDTraj;
@@ -340,23 +356,6 @@ public class TrajectoryManager : MonoBehaviour
         catch { }
     }
 
-    float ShipDistanceFromSpline(Vector3 shipPos, SplineContainer splineContainer)
-    {
-        float steps = 100f;
-        float minDist = Mathf.Infinity;
-
-        for (float i = 0; i <= steps; i++)
-        {
-            float t = i / steps;
-            float3 p = splineContainer.EvaluatePosition(t);
-            Vector3 splineDot = new Vector3(p.x, p.y, p.z);
-
-            float d = Vector3.Distance(shipPos, splineDot);
-            if (d < minDist) minDist = d;
-        }
-
-        return minDist;
-    }
 
     void Log(string msg)
     {

@@ -108,7 +108,7 @@ public class PlaceObjectRoom : MonoBehaviour
 
     private void PlaceRelativeToAnchor(MRUKAnchor anchor)
     {
-        // 1) Obtener bounds del anchor (Collider preferido)
+        // Obtener bounds del anchor (Collider preferido)
         if (!TryGetAnchorBounds(anchor, out Bounds anchorBounds))
         {
             if (!fallbackToTransformPosition)
@@ -121,7 +121,7 @@ public class PlaceObjectRoom : MonoBehaviour
             anchorBounds = new Bounds(anchor.transform.position, Vector3.zero);
         }
 
-        // 2) Calcular punto destino en el anchor
+        // Calcular punto destino en el anchor
         Vector3 targetPointWorld = GetAnchorTargetPoint(anchor, anchorBounds, placement);
 
         // Aplicar offset local del anchor (p.ej. mover sobre la mesa en X/Z del anchor)
@@ -137,7 +137,7 @@ public class PlaceObjectRoom : MonoBehaviour
 
         targetPointWorld += Vector3.up * signedYOffset;
 
-        // 3) Obtener bounds del objeto a mover (Renderer preferido)
+        // Obtener bounds del objeto a mover (Renderer preferido)
         if (!TryGetObjectBounds(out Bounds objBounds))
         {
             // Fallback: usa pivot como referencia
@@ -145,10 +145,10 @@ public class PlaceObjectRoom : MonoBehaviour
             return;
         }
 
-        // 4) Elegir qué punto del objeto alinear al target
+        // Elegir qué punto del objeto alinear al target
         Vector3 objectRefPoint = GetObjectReferencePoint(objBounds, objectAlign);
 
-        // 5) Calcular delta para mover
+        // Calcular delta para mover
         Vector3 delta = targetPointWorld - objectRefPoint;
         transform.position += delta;
     }
@@ -163,7 +163,6 @@ public class PlaceObjectRoom : MonoBehaviour
             return true;
         }
 
-        // A veces hay renderers/meshes; intenta con renderer si aplica
         Renderer rend = anchor.GetComponentInChildren<Renderer>();
         if (rend != null)
         {

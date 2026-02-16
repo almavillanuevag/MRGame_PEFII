@@ -6,12 +6,6 @@ using TMPro;
 using UnityEngine;
 
 using Vector3 = UnityEngine.Vector3;
-/* 
- * Notas a mejorar:
- *  - Intentarlo con otra forma de comenzar a dibujar (botones medio incomodo)
- *  - Ponerle un UI flotante a la pelota que de las instrucciones
- *  - Buscar un asset mas bonito para pincel
- */
 
 public class DrawNewTrajectory : MonoBehaviour 
 {
@@ -19,7 +13,7 @@ public class DrawNewTrajectory : MonoBehaviour
     public GameObject debugText;
     public VisualizeTrajectorySpline visualizer;
     public Transform brushPoint; // punto donde dibujas
-    public TrajectoryManager previewSpline; // punto donde dibujas
+    public TrajectoryManager previewSpline; // Spline para visualizar
 
     [Header("UI Flujo Grabación")]
     public GameObject panelIdle;        // Botón "Iniciar"
@@ -36,12 +30,6 @@ public class DrawNewTrajectory : MonoBehaviour
     public float radius;
     public string IDTraj;
 
-    // --- Variables para funcionamiento interno --
-    bool trackingReady = false;
-    Transform palmTransform;
-    OVRSkeleton ovrSkeleton;
-    readonly OVRSkeleton.BoneId boneId = OVRSkeleton.BoneId.XRHand_MiddleIntermediate;
-
     // Para el muestreo
     float sampleInterval = 1/60f;
     float minDistance = 0.01f;
@@ -50,92 +38,52 @@ public class DrawNewTrajectory : MonoBehaviour
     Coroutine samplingCoroutine;
     FirebaseFirestore db;
     bool isHolding = false;
+    Vector3 initialBrushPos;
+    Quaternion initialBrushRot;
 
     // Para el render de la linea
     LineRenderer previewLine;
     float lineWidth = 0.005f;
-    Vector3 offset = new Vector3(0,-0.025f,-0.025f);
 
     // Para iniciar las grabaciones UI
     float countdownSeconds = 3f;
     float recordSeconds = 5f;
+    Coroutine flowCoroutine;
     enum DrawState { Idle, Waiting, Countdown, Recording, Post }
     DrawState state = DrawState.Idle;
-    Coroutine flowCoroutine;
+    
 
 
     private void Start() 
     {
-        // Buscar HandTracking
-        StartCoroutine(WaitForSkeletons());
-
         // Inicializar firestore
         db = FirebaseFirestore.DefaultInstance;
 
         // Configuracion del line render
         SetupLineRenderer();
 
+        // Definir el estado de inactivo
         SetState(DrawState.Idle);
         gameObject.GetComponentInChildren<MeshRenderer>().enabled = false;
+
+        // Ver el spline extrude del preview spline
+        previewSpline.splineExtrude.enabled=true;
     }
 
-    void OnTriggerEnter(Collider other) // O VER SI LO HAGO CON GRABBABLE ------------------*
+    void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("HandCollider")) return;
         if (isHolding) return;
 
-        // Encontrar skeleton de esa mano
-        OVRSkeleton skeleton = other.GetComponentInChildren<OVRSkeleton>();
-        if (skeleton == null)
-        {
-            Debug.LogWarning("HandCollider detectado, pero no se encontró OVRSkeleton en hijos.");
-            return;
-        }
-
-        ovrSkeleton = skeleton;
-
-        // Encontrar el punto de la mano que chocó una vez 
-        palmTransform = FindPalmTransform();
-        if (palmTransform == null)
-        {
-            // Si aún no está listo, lo resolvemos en Update/Coroutine
-            trackingReady = false;
-            StartCoroutine(WaitForSkeletons());
-        }
-        else trackingReady = true;
         isHolding = true;
 
         // Para comenzar a grabar si ya sujeto el pincel en el estado Waiting
-        if (isHolding && trackingReady && state == DrawState.Waiting)
+        if (state == DrawState.Waiting)
         {
             // Si ya hay un flujo corriendo, lo cancelamos
             if (flowCoroutine != null) StopCoroutine(flowCoroutine);
             flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
         }
-    }
-
-    void Update()
-    {
-        if (!isHolding) return;
-        if(!trackingReady) return;
-
-        if (ovrSkeleton == null || !ovrSkeleton.IsDataValid)
-        {
-            trackingReady = false;
-            palmTransform = null;
-            StartCoroutine(WaitForSkeletons());
-            return;
-        }
-
-        if (palmTransform == null)
-        {
-            palmTransform = FindPalmTransform();
-            if (palmTransform == null) return;
-        }
-
-        // Actualizar posicion del pincel
-        transform.position = palmTransform.position + offset;
-        transform.rotation = palmTransform.rotation;
     }
 
     // --- Funciones publicas para asignar a botones UI -- 
@@ -223,8 +171,12 @@ public class DrawNewTrajectory : MonoBehaviour
             {
                 // Almacenar el ID de la trajectoria en la instancia de SelectPatient
                 IDTraj = task.Result;
-                Log("Trayectoria guardada en Firestore: ID " + IDTraj);
+                // Deshabilitar el pincel
                 gameObject.GetComponentInChildren<MeshRenderer>().enabled = false;
+
+                // Resetear el vector de la trayectoria si ya se guardó
+                therapistFullTrajectoryWorld.Clear();
+                UpdatePreviewLine();
 
                 if (SelectPatient.Instance != null)
                 {
@@ -237,21 +189,23 @@ public class DrawNewTrajectory : MonoBehaviour
             else
                 Log("ERROR guardando Firestore: " + task.Exception);
         });
+
+        // Dejar de ver el spline extrude de del NEWTrajectory (la que dibujaron) y ver la de PreviewTrajectory (la que lee desde firestore)
+        visualizer.splineExtrude.enabled = false;
+        previewSpline.splineExtrude.enabled = true;
     } 
 
     public void StartRecordingFlow() // Botón iniciar grabación
     {
         SetState(DrawState.Waiting);
+        isHolding = false;
+
+        // Almacenar la posicion inicial del pincel
+        initialBrushPos = transform.position;
+        initialBrushRot = transform.rotation;
+
         // Activar el pincel
         gameObject.GetComponentInChildren<MeshRenderer>().enabled = true;
-
-        // solo comenzar a grabar si ya tiene el pincel en la mano
-        if (isHolding && trackingReady)
-        {
-            // Si ya hay un flujo corriendo, lo cancelamos
-            if (flowCoroutine != null) StopCoroutine(flowCoroutine);
-            flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
-        }
 
         // Borrar la previsualizacion del spline pasado
         previewSpline.ClearSplinePreviewVisual();
@@ -266,8 +220,29 @@ public class DrawNewTrajectory : MonoBehaviour
         therapistFullTrajectoryWorld.Clear();
         if (previewLine != null) previewLine.positionCount = 0;
         visualizer.splineExtrude.enabled = false;
-        flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
+
+        // Resetear pincel a la posicion inicial
+        transform.SetPositionAndRotation(initialBrushPos, initialBrushRot);
+        SetState(DrawState.Waiting);
+        isHolding = false;
     }
+
+    public void CancelRecording() // Botón volver a grabar
+    {
+        // Limpia y vuelve al inicio
+        if (flowCoroutine != null) StopCoroutine(flowCoroutine);
+        StopDrawing();
+        therapistFullTrajectoryWorld.Clear();
+        if (previewLine != null) previewLine.positionCount = 0;
+        visualizer.splineExtrude.enabled = false;
+
+        transform.SetPositionAndRotation(initialBrushPos, initialBrushRot);
+        SetState(DrawState.Idle);
+
+        // Resetear pincel a la posicion inicial y hacerlo invisible
+        gameObject.GetComponentInChildren<MeshRenderer>().enabled = false;
+    }
+
 
     // --- Flijo de COROUTINE ---
     private IEnumerator RecordingFlowCoroutine()
@@ -318,11 +293,6 @@ public class DrawNewTrajectory : MonoBehaviour
     // --- Funciones internas privadas --- 
     void StartDrawing() 
     {
-        if (!trackingReady)
-        {
-            Log("No se puede dibujar: hand tracking no está listo");
-            return;
-        }
 
         therapistFullTrajectoryWorld.Clear();
         drawing = true;
@@ -340,18 +310,6 @@ public class DrawNewTrajectory : MonoBehaviour
         samplingCoroutine = StartCoroutine(SampleCoroutine());
     }
 
-    void StopDrawing() // Botón finalizar de dibujar
-    {
-        if (!drawing) return;
-        drawing = false;
-        if (samplingCoroutine != null) StopCoroutine(samplingCoroutine);
-        samplingCoroutine = null;
-
-        // Visualizarla
-        if (visualizer != null)
-            visualizer.BuildSplineFromRecordedTrajectory();
-    }
-
     IEnumerator SampleCoroutine() // Calcula el muestreo de la trayectoria
     {
         while (drawing)
@@ -365,6 +323,21 @@ public class DrawNewTrajectory : MonoBehaviour
             }
             yield return new WaitForSeconds(sampleInterval);
         }
+    }
+
+    void StopDrawing() // Botón finalizar de dibujar
+    {
+        if (!drawing) return;
+        drawing = false;
+        if (samplingCoroutine != null) StopCoroutine(samplingCoroutine);
+        samplingCoroutine = null;
+
+        // Visualizarla
+        if (visualizer != null)
+            visualizer.BuildSplineFromRecordedTrajectory(therapistFullTrajectoryWorld);
+
+        isHolding = false;
+
     }
 
     void SetupLineRenderer() // Configuración para que se vea en las Oculus
@@ -403,48 +376,6 @@ public class DrawNewTrajectory : MonoBehaviour
             previewLine.SetPosition(i, therapistFullTrajectoryWorld[i]);
     }
 
-    IEnumerator WaitForSkeletons()
-    {
-        TextMeshProUGUI log = debugText.GetComponent<TextMeshProUGUI>();
-        if (debugText != null) log.text = "Esperando hand tracking...";
-
-        // Esperar skeleton + datos válidos
-        while (ovrSkeleton == null || !ovrSkeleton.IsDataValid)
-        {
-            if (debugText != null) log.text = "Esperando hand tracking...";
-            yield return null;
-        }
-
-        // Esperar bones
-        while (ovrSkeleton.Bones == null || ovrSkeleton.Bones.Count == 0)
-        {
-            yield return null;
-        }
-
-        // Encontrar palm bone
-        palmTransform = FindPalmTransform();
-        if (palmTransform == null)
-        {
-            // No marcamos trackingReady, reintentamos
-            yield return new WaitForSeconds(0.1f);
-            StartCoroutine(WaitForSkeletons());
-            yield break;
-        }
-
-        trackingReady = true;
-    }
-
-    Transform FindPalmTransform()
-    {
-        if (ovrSkeleton == null || ovrSkeleton.Bones == null) return null;
-
-        foreach (var b in ovrSkeleton.Bones)
-        {
-            if (b != null && b.Id == boneId)
-                return b.Transform;
-        }
-        return null;
-    }
     void SetState(DrawState newState)
     {
         state = newState;
@@ -453,12 +384,6 @@ public class DrawNewTrajectory : MonoBehaviour
         if (panelWaiting != null) panelWaiting.SetActive(state == DrawState.Waiting);
         if (panelCountdown != null) panelCountdown.SetActive(state == DrawState.Countdown || state == DrawState.Recording);
         if (panelPost != null) panelPost.SetActive(state == DrawState.Post);
-    }
-
-    // --- Para leerlo desde el visualizador ---
-    public List<Vector3> GetFullTrajectory() 
-    { 
-        return therapistFullTrajectoryWorld;
     }
 
     private void Log(string msg)

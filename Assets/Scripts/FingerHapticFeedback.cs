@@ -17,8 +17,8 @@ public class FingerHapticFeedback : MonoBehaviour
 
     [Header("¿Visualizar Render?")]
     // Configuración del render visual
-    LineRenderer lineR;
-    float lineWidth = 0.005f;
+    //LineRenderer lineR;
+    //float lineWidth = 0.005f;
     public bool viewRender = false; // Desactivar false si quiero que no se vea las lineas
 
     // -- Variables para uso interno --
@@ -52,13 +52,12 @@ public class FingerHapticFeedback : MonoBehaviour
             Log($"{gameObject.name}: trajectorySpline no asignado");
             return;
         }
-
-        if (viewRender)
-            SetupLineRenderer();
     }
 
     void Update()
-    {
+    {   // Problema del dedo pulgar izquierdo
+        if (gameObject.name == "LeftSphere_0") { StopVibration(); return; }
+
         // No comenzar a vibrar hasta que el juego comience (alguna mano tome la nave)
         if (shipMovementR.StartGame && shipMovementL.StartGame)
             return;
@@ -96,8 +95,7 @@ public class FingerHapticFeedback : MonoBehaviour
         distanceVectorFromSpline = CalculateDistanceFromSpline(fingerWorldPos, fingerLocalPos);
         distanceFromSpline = distanceVectorFromSpline.magnitude;
 
-        // Problema del dedo pulgar izquierdo
-        if (gameObject.name == "LeftSphere_0") { StopVibration(); return; }
+        
 
         // Retroalimentacion haptica por zonas 
 
@@ -107,7 +105,7 @@ public class FingerHapticFeedback : MonoBehaviour
             hardTimeAccum = 0f;
             VibrationMuted = false;
 
-            if (viewRender) lineR.material.color = Color.green;
+            //if (viewRender) lineR.material.color = Color.green;
             StopVibration();
             return;
         }
@@ -122,7 +120,7 @@ public class FingerHapticFeedback : MonoBehaviour
             float u = Mathf.InverseLerp(softCoreRadius, tubeRadius, distanceFromSpline);
             float intensity = Mathf.Lerp(0f, softMaxIntensity, u);
 
-            if (viewRender) lineR.material.color = Color.yellow;
+            //if (viewRender) lineR.material.color = Color.yellow;
             VibrateFinger(distanceVectorFromSpline, intensity);
             return;
         }
@@ -130,7 +128,7 @@ public class FingerHapticFeedback : MonoBehaviour
         // Si esta fuera del margen de radio -> vibracion mas intensa (hard)
         if (distanceFromSpline >= hardRadius)
         {
-            if (viewRender) lineR.material.color = Color.red;
+            //if (viewRender) lineR.material.color = Color.red;
 
             // No dejarlo por mas de 10 segundos para evitar saturacion de la sensibilidad del usuario
             hardTimeAccum += Time.deltaTime;
@@ -154,32 +152,32 @@ public class FingerHapticFeedback : MonoBehaviour
 
     }
 
-    void SetupLineRenderer() // Configuración para que se vea en las Oculus
-    {
-        lineR = gameObject.AddComponent<LineRenderer>();
+    //void SetupLineRenderer() // Configuración para que se vea en las Oculus
+    //{
+    //    lineR = gameObject.AddComponent<LineRenderer>();
 
-        // Configuración básica de la línea
-        lineR.startWidth = lineWidth;
-        lineR.endWidth = lineWidth;
-        lineR.positionCount = 2;
-        lineR.useWorldSpace = true;
+    //    // Configuración básica de la línea
+    //    lineR.startWidth = lineWidth;
+    //    lineR.endWidth = lineWidth;
+    //    lineR.positionCount = 2;
+    //    lineR.useWorldSpace = true;
 
-        Shader sh = Shader.Find("Universal Render Pipeline/Lit");
-        if (sh == null) sh = Shader.Find("Standard"); // Fallback
-        if (sh == null) sh = Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"); // Fallback seguro para líneas
+    //    Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+    //    if (sh == null) sh = Shader.Find("Standard"); // Fallback
+    //    if (sh == null) sh = Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"); // Fallback seguro para líneas
 
-        Material mat = new Material(sh);
+    //    Material mat = new Material(sh);
 
-        // Ajustes para que la línea brille y se vea
-        mat.color = Color.green;
+    //    // Ajustes para que la línea brille y se vea
+    //    mat.color = Color.green;
 
-        // Asignar material
-        lineR.material = mat;
+    //    // Asignar material
+    //    lineR.material = mat;
 
-        // Que no proyecte sombras raras
-        lineR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        lineR.receiveShadows = false;
-    }
+    //    // Que no proyecte sombras raras
+    //    lineR.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    //    lineR.receiveShadows = false;
+    //}
 
     Vector3 CalculateDistanceFromSpline(Vector3 fingerWorldPos, Vector3 fingerLocalPos)
     {
@@ -197,11 +195,11 @@ public class FingerHapticFeedback : MonoBehaviour
         Vector3 distanceVector = fingerWorldPos - nearestWorldPos;
 
         // Actualizar la línea visual
-        if (viewRender)
-        {
-            lineR.SetPosition(0, fingerWorldPos);   // Punto A: Dedo
-            lineR.SetPosition(1, nearestWorldPos);  // Punto B: Tubo
-        }
+        //if (viewRender)
+        //{
+        //    lineR.SetPosition(0, fingerWorldPos);   // Punto A: Dedo
+        //    lineR.SetPosition(1, nearestWorldPos);  // Punto B: Tubo
+        //}
         
         return distanceVector;
     }
