@@ -9404,7 +9404,7 @@ MonoBehaviour:
   Colliders: 1
   CutHoles: 0
   castShadows: 1
-  hideMesh: 0
+  hideMesh: 1
   Layer: 0
   textureCoordinateModes:
   - WallU: 5
@@ -15717,7 +15717,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1577947785830901653, guid: a69334d900b2f6a468e9ff5426c2cd74, type: 3}
       propertyPath: m_CollisionDetection
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5109676557321904645, guid: a69334d900b2f6a468e9ff5426c2cd74, type: 3}
       propertyPath: m_Name

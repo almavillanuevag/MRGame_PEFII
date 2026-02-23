@@ -27,7 +27,7 @@ public class TrajectoryManager : MonoBehaviour
     public float distance = 0;
     public float erroresMax = 3f;
     public float radioMax = 0.2f;
-    public float radioSUM = 0.01f;
+    public float radioSUM = 0.03f;
     public float errors = 0;
     public float TotalError = -1;
 
@@ -37,6 +37,9 @@ public class TrajectoryManager : MonoBehaviour
     private Coroutine _loadCoroutine;
 
     FirebaseFirestore db;
+    // Para el render de la linea
+    LineRenderer previewLine;
+    float lineWidth = 0.005f;
 
     private void Awake()
     {
@@ -203,7 +206,7 @@ public class TrajectoryManager : MonoBehaviour
             {
                 float savedRadius = (float)savedRadiusD;
 
-                // (Opcional pero recomendado) Clamp de seguridad
+                // Clamp de seguridad
                 savedRadius = Mathf.Clamp(savedRadius, 0.001f, 0.5f);
 
                 splineExtrude.Radius = savedRadius;
@@ -230,12 +233,16 @@ public class TrajectoryManager : MonoBehaviour
                 }
             }
 
+            // validar su longitud
             List<Vector3> fullWorld = ParsePoints(raw);
             if (fullWorld == null || fullWorld.Count < 2)
             {
                 Log("ERROR: Trayectoria insuficiente para construir spline.");
                 return;
             }
+
+            // Visualizar el line render de la trayectoria completa
+            //CreateTrajectoryLineRender(fullWorld);
 
             List<Vector3> resampled = ResampleByArcLength(fullWorld, knotCount);
             BuildSplineFromWorldKnots(resampled);
@@ -333,6 +340,40 @@ public class TrajectoryManager : MonoBehaviour
 
         return result;
     }
+
+    //void CreateTrajectoryLineRender(List<Vector3> fullWorld)
+    //{
+    //    previewLine = gameObject.AddComponent<LineRenderer>();
+
+    //    // Configuración básica de la línea
+    //    previewLine.startWidth = lineWidth;
+    //    previewLine.endWidth = lineWidth;
+    //    previewLine.positionCount = 0;
+    //    previewLine.useWorldSpace = true;
+
+    //    // Shader para MR
+    //    Shader sh = Shader.Find("Universal Render Pipeline/Lit");
+    //    if (sh == null) sh = Shader.Find("Standard"); // Fallback
+    //    if (sh == null) sh = Shader.Find("Legacy Shaders/Particles/Alpha Blended Premultiply"); // Fallback seguro para líneas
+
+    //    Material mat = new Material(sh);
+
+    //    // Ajustes para que la línea brille y se vea
+    //    mat.color = Color.cyan;
+
+    //    // Asignar material
+    //    previewLine.material = mat;
+
+    //    // Que no proyecte sombras raras
+    //    previewLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    //    previewLine.receiveShadows = false;
+
+    //    if (previewLine == null) return;
+
+    //    previewLine.positionCount = fullWorld.Count;
+    //    for (int i = 0; i < fullWorld.Count; i++)
+    //        previewLine.SetPosition(i, fullWorld[i]);
+    //}
 
     void BuildSplineFromWorldKnots(List<Vector3> knotsWorld)
     {

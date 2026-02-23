@@ -1,8 +1,9 @@
 using Bhaptics.SDK2;
+using Bhaptics.SDK2.Glove;
+using Meta.XR.MRUtilityKit;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Splines;
-using Meta.XR.MRUtilityKit;
 
 
 public class TactosyForHandsFeedback : MonoBehaviour
@@ -16,10 +17,9 @@ public class TactosyForHandsFeedback : MonoBehaviour
     // Del spline
     float radio;
     SplineExtrude splineExtrude;
-
     float distance;
-    int[] motors = new int[6] { 100, 100, 100, 100, 100, 100};
-
+    float TimeAccum = 0f;
+    bool VibrationMuted = false;
 
 
     private void Start()
@@ -49,13 +49,17 @@ public class TactosyForHandsFeedback : MonoBehaviour
             {
                 // Es la mano izquierda
                 SendHaptics(distance, radio, (int)PositionType.ForearmL);
-
             }
             if (shipMovementR.HandGrab == 2)
             {
                 // Es la mano derecha
                 SendHaptics(distance, radio, (int)PositionType.ForearmR);
             }
+        }
+        else // Si esta dentro del radio, resetear el tiempo fuera 
+        {
+            TimeAccum = 0f;
+            VibrationMuted = false;
         }
     }
 
@@ -92,7 +96,18 @@ public class TactosyForHandsFeedback : MonoBehaviour
 
         // Mandar retroalimentacion haptica
         BhapticsLibrary.PlayMotors(hand, motors, pulseMs);
-    }
 
+        // Si esta mas de 10 segundos constantes con vibracion -> detenerla para evitar saturar al paciente 
+        TimeAccum += Time.deltaTime;
+        if (TimeAccum >= 10) VibrationMuted = true;
+
+        if (VibrationMuted)
+        {
+            intensity = 0;
+            motors = new int[6] { intensity, intensity, intensity, intensity, intensity, intensity };
+            BhapticsLibrary.PlayMotors(hand, motors, pulseMs);
+            return;
+        }
+    }
 }
 

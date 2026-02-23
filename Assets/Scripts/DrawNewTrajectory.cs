@@ -14,15 +14,20 @@ public class DrawNewTrajectory : MonoBehaviour
     public VisualizeTrajectorySpline visualizer;
     public Transform brushPoint; // punto donde dibujas
     public TrajectoryManager previewSpline; // Spline para visualizar
+    
 
     [Header("UI Flujo Grabación")]
+    public GameObject canvasIdle;
+    public GameObject canvasDrawing;
+    public GameObject canvasHAND;
+
     public GameObject panelIdle;        // Botón "Iniciar"
     public GameObject panelWaiting;     // Texto de "Toma el pincel para comenzar a dibujar"
     public GameObject panelCountdown;   // Texto 3..2..1
+    public GameObject panelDrawing;
     public GameObject panelPost;        // Slider + Guardar/Regrabar
-
+    public TextMeshProUGUI countdownDraw;
     public TextMeshProUGUI countdownTMP;
-    public TextMeshProUGUI tituloTMP;
 
     [Header("Objetos publicos para lectura")]
     // Listas de los puntos
@@ -49,10 +54,12 @@ public class DrawNewTrajectory : MonoBehaviour
     float countdownSeconds = 3f;
     float recordSeconds = 5f;
     Coroutine flowCoroutine;
-    enum DrawState { Idle, Waiting, Countdown, Recording, Post }
+    public enum DrawState { Idle, Waiting, Countdown, Recording, Post }
     DrawState state = DrawState.Idle;
-    
 
+    // Para las animaciones
+    Animator brushAnimator;
+    bool stopHighlightAnim = false;
 
     private void Start() 
     {
@@ -68,6 +75,10 @@ public class DrawNewTrajectory : MonoBehaviour
 
         // Ver el spline extrude del preview spline
         previewSpline.splineExtrude.enabled=true;
+
+        // Configurar animación
+        brushAnimator = GetComponentInChildren<Animator>(true); 
+        if (brushAnimator != null) brushAnimator.enabled = false; 
     }
 
     void OnTriggerEnter(Collider other)
@@ -83,6 +94,7 @@ public class DrawNewTrajectory : MonoBehaviour
             // Si ya hay un flujo corriendo, lo cancelamos
             if (flowCoroutine != null) StopCoroutine(flowCoroutine);
             flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
+            gameObject.GetComponentInChildren<Animator>().enabled = false;
         }
     }
 
@@ -253,6 +265,7 @@ public class DrawNewTrajectory : MonoBehaviour
         float t = countdownSeconds;
         while (t > 0f)
         {
+            gameObject.GetComponentInChildren<Animator>().enabled = true;
             if (countdownTMP != null)
                 countdownTMP.text = $"{Mathf.CeilToInt(t)}"; // Posiciónate en el punto inicial.Grabación inicia en: 
 
@@ -269,13 +282,11 @@ public class DrawNewTrajectory : MonoBehaviour
         float t1 = recordSeconds;
         while (t1 > 0f)
         {
-            if (countdownTMP != null)
+            if (countdownDraw != null)
             {
-                tituloTMP.text = $"Grabando trayectoria. \nTiempo restante:  ";
-                countdownTMP.text = $"{Mathf.CeilToInt(t1)}"; // 
+                countdownDraw.text = $"{Mathf.CeilToInt(t1)}";  
             }
                 
-
             t1 -= Time.deltaTime;
             yield return null;
         }
@@ -380,11 +391,33 @@ public class DrawNewTrajectory : MonoBehaviour
     {
         state = newState;
 
-        if (panelIdle != null) panelIdle.SetActive(state == DrawState.Idle);
-        if (panelWaiting != null) panelWaiting.SetActive(state == DrawState.Waiting);
-        if (panelCountdown != null) panelCountdown.SetActive(state == DrawState.Countdown || state == DrawState.Recording);
-        if (panelPost != null) panelPost.SetActive(state == DrawState.Post);
+        // Canvas principales
+        if (canvasIdle != null)
+            canvasIdle.SetActive(state == DrawState.Idle || state == DrawState.Post);
+
+        if (canvasDrawing != null)
+            canvasDrawing.SetActive(state == DrawState.Waiting || state == DrawState.Countdown || state == DrawState.Recording);
+
+        if (canvasHAND != null)
+            canvasHAND.SetActive(state == DrawState.Recording);
+
+        // Panels internos 
+        if (panelIdle != null)
+            panelIdle.SetActive(state == DrawState.Idle);
+
+        if (panelWaiting != null)
+            panelWaiting.SetActive(state == DrawState.Waiting);
+
+        if (panelCountdown != null)
+            panelCountdown.SetActive(state == DrawState.Countdown);
+
+        if (panelDrawing != null)
+            panelDrawing.SetActive(state == DrawState.Recording);
+
+        if (panelPost != null)
+            panelPost.SetActive(state == DrawState.Post);
     }
+
 
     private void Log(string msg)
     {

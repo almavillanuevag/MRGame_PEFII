@@ -10,6 +10,6 @@ public class ScenesManager : MonoBehaviour
 
     public void CreateTrajectory()
     {
-        SceneManager.LoadScene("Dibujos2");
+        SceneManager.LoadScene("Terapeuta 1");
     }
 }

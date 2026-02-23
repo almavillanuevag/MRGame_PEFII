@@ -17,9 +17,12 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Haptics 2.unity
     guid: 6f3a8d49a3eaaf14595aa8a4dcdcbfca
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Dibujos2.unity
     guid: 870ea1d3fbb56f24680e55f82589794b
+  - enabled: 1
+    path: Assets/Scenes/Terapeuta 1.unity
+    guid: f77e8ccb898b59844b65155d13fa3057
   - enabled: 1
     path: Assets/Scenes/FullGame v1.unity
     guid: 3d5f643d1a9bd9f4fb48aa27423bad8e
