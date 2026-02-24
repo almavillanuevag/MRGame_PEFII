@@ -5,11 +5,11 @@ public class ScenesManager : MonoBehaviour
 {
     public void StartGame()
     {
-        SceneManager.LoadScene("FullGame v1");
+        SceneManager.LoadScene("1 Patient Session SG");
     }
 
     public void CreateTrajectory()
     {
-        SceneManager.LoadScene("Terapeuta 1");
+        SceneManager.LoadScene("0 Theraphist Menu");
     }
 }

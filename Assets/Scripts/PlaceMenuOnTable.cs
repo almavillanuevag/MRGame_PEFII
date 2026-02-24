@@ -2,159 +2,168 @@ using System.Collections;
 using UnityEngine;
 using Meta.XR.MRUtilityKit;
 
+
+
 public class PlaceMenuOnTable : MonoBehaviour
-{
-    [Header("Referencias")]
-    [Tooltip("Normalmente CenterEyeAnchor o la cámara del rig (terapeuta).")]
-    public Transform therapist;
+{   // Coloca un Canvas World Space en el borde de la mesa más cercana al usuario.
+    [Header("Placement")]
+    public Transform _cameraTransform;
+    [Tooltip("Offset en X relativo al usuario. 0 = mismo X que el usuario, positivo = derecha, negativo = izquierda.")]
+    public float xOffset = -0.2f;
 
-    MRUK mruk;
+    [Tooltip("Offset vertical sobre el borde de la mesa (metros). Útil para que el canvas no quede enterrado.")]
+    public float yOffset = 0.1f;
 
-    [Header("Posicionamiento")]
-    [Tooltip("Distancia fija en X con respecto al terapeuta. Positivo = a la derecha del terapeuta, negativo = izquierda.")]
-    public float xOffsetFromTherapist = 0.35f;
+    [Tooltip("Offset en Z desde el borde de la mesa hacia el usuario (metros). Positivo = ligeramente hacia el jugador.")]
+    public float zEdgeOffset = 0f;
 
-    float yLiftAboveTable = 0.01f; //Altura adicional sobre la superficie de la mesa (m).
-    float zOutFromTableEdge = 0f; // Separación hacia afuera desde el borde de la mesa (m
-    bool keepFacingTherapist = true; // El menu siga al terapeuta
-    float rotationLerpSpeed = 10f; // Velocidad de suavizado para rotación.
-    bool chooseClosestTable = true; // Elegir la mesa más cercana al terapeuta
+    bool continuousLookAt = true; // el canvas rota continuamente para mirar al usuario cada frame.
+    bool lockPitch = true; //Solo rota en el eje Y
 
-    private MRUKAnchor tableAnchor;
+    // Retry
+    int maxRetries = 120;
+    float retryInterval = 0.05f;
 
-    private IEnumerator Start()
+    // Referencia a la cámara principal (usuario)
+    bool _placed = false;
+
+    private void Start()
     {
-        if (therapist == null)
+        if (_cameraTransform == null)
         {
-            Debug.LogError("[PlaceMenuOnTableEdgeFacingUser] Asigna 'therapist' (CenterEye/Cámara).");
-            yield break;
+            Debug.LogError("[PlaceMenuOnTableEdgeFacingUser] Asigna CenterEye Cámara");
         }
 
-        if (mruk == null) mruk = MRUK.Instance;
+        StartCoroutine(WaitForRoomAndPlace());
+    }
 
-        // Esperar a que MRUK tenga room y anchors listos
-        yield return new WaitUntil(() => mruk != null && mruk.Rooms != null && mruk.Rooms.Count > 0);
+    private void LateUpdate()
+    {
+        // Rotación continua para que el canvas siempre mire al usuario
+        if (_placed && continuousLookAt && _cameraTransform != null)
+        {
+            FaceUser();
+        }
+    }
 
-        // Buscar mesa
-        tableAnchor = FindTableAnchor(mruk, therapist.position, chooseClosestTable);
+    private IEnumerator WaitForRoomAndPlace()
+    {
+        while (MRUK.Instance == null) yield return null;
+        while (MRUK.Instance.GetCurrentRoom() == null) yield return null;
+
+        MRUKRoom room = MRUK.Instance.GetCurrentRoom();
+
+        while (room.Anchors == null || room.Anchors.Count == 0) yield return null;
+
+        MRUKAnchor tableAnchor = null;
+        for (int i = 0; i < maxRetries; i++)
+        {
+            tableAnchor = FindNearestTableAnchor(room);
+            if (tableAnchor != null) break;
+            yield return new WaitForSeconds(retryInterval);
+        }
+
         if (tableAnchor == null)
         {
-            Debug.LogWarning("[PlaceMenuOnTableEdgeFacingUser] No encontré mesa (anchor).");
+            Debug.LogWarning("No se encontró ningún anchor TABLE en la habitación.");
             yield break;
         }
 
-        PlaceOnce();
+        PlaceOnTableEdge(tableAnchor);
     }
 
-    private void Update()
+    private MRUKAnchor FindNearestTableAnchor(MRUKRoom room)
     {
-        if (!keepFacingTherapist) return;
-        if (therapist == null) return;
+        if (_cameraTransform == null) return null;
 
-        FaceTherapistYawOnly();
-    }
-
-    private void PlaceOnce()
-    {
-        // 1) Tomar bounds de la mesa (aprox) en mundo
-        // MRUKAnchor tiene un volumen/plane; usaremos su transform y su bounds (cuando existe).
-        // Si no hay bounds confiables, igual podemos usar el forward del anchor como "frente".
-        Vector3 tableUp = tableAnchor.transform.up;
-        Vector3 tableForward = tableAnchor.transform.forward;
-        Vector3 tableRight = tableAnchor.transform.right;
-
-        // Centro aproximado del anchor
-        Vector3 tableCenter = tableAnchor.transform.position;
-
-        // 2) Determinar "borde frontal" de la mesa: nos movemos en forward hasta el borde usando el tamaño si está disponible
-        // Intento: usar PlaneRect/Bounds si existen; fallback a un offset fijo.
-        float halfDepth = 0.35f; // fallback razonable si no hay tamaño
-        float halfWidth = 0.45f;
-
-        // Si MRUK tiene rect/bounds: (depende de versión; algunas exponen PlaneRect)
-        // Como no es estable entre versiones, lo dejamos robusto:
-        var rend = tableAnchor.GetComponentInChildren<Renderer>();
-        if (rend != null)
-        {
-            Bounds b = rend.bounds;
-            // Proyectar a ejes de la mesa: aproximación usando magnitudes en ejes mundo
-            // Para mesa típica alineada, funciona muy bien.
-            halfDepth = b.extents.z;
-            halfWidth = b.extents.x;
-            tableCenter = b.center;
-        }
-
-        // 3) Calcula X basado en terapeuta: posición deseada = terapeuta + (right * offset)
-        Vector3 desiredX = therapist.position + therapist.right * xOffsetFromTherapist;
-
-        // 4) Construye posición final:
-        // - X viene de desiredX proyectado sobre el eje right de la mesa (para que caiga “sobre la mesa”)
-        // - Z al borde frontal de la mesa + zOutFromTableEdge (afuera del borde)
-        // - Y a la altura de la superficie + yLift
-        //
-        // Nota: esto asume que la mesa es más o menos horizontal.
-        Vector3 edgeFront = tableCenter + tableForward * (halfDepth + zOutFromTableEdge);
-
-        // Proyectar desiredX sobre el eje right de la mesa: tomar el componente right respecto al centro
-        Vector3 fromCenterToDesired = desiredX - tableCenter;
-        float xOnTable = Vector3.Dot(fromCenterToDesired, tableRight);
-        xOnTable = Mathf.Clamp(xOnTable, -halfWidth, halfWidth);
-
-        Vector3 finalPos = edgeFront + tableRight * xOnTable;
-
-        // Ajuste de altura
-        finalPos += tableUp * yLiftAboveTable;
-
-        transform.position = finalPos;
-
-        // Rotación inicial mirando al terapeuta
-        FaceTherapistYawOnly();
-    }
-
-    private void FaceTherapistYawOnly()
-    {
-        Vector3 toUser = therapist.position - transform.position;
-        toUser.y = 0f; // solo yaw
-        if (toUser.sqrMagnitude < 0.0001f) return;
-
-        Quaternion targetRot = Quaternion.LookRotation(toUser.normalized, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * rotationLerpSpeed);
-    }
-
-    private MRUKAnchor FindTableAnchor(MRUK mrukInstance, Vector3 referencePos, bool closest)
-    {
         MRUKAnchor best = null;
-        float bestDist = float.MaxValue;
+        float bestScore = float.PositiveInfinity;
 
-        foreach (var room in mrukInstance.Rooms)
+        foreach (var anchor in room.Anchors)
         {
-            if (room == null || room.Anchors == null) continue;
+            if (anchor == null) continue;
+            if (anchor.Label != MRUKAnchor.SceneLabels.TABLE) continue;
 
-            foreach (var a in room.Anchors)
+            // Score = distancia en Z + distancia en Y (ignora X)
+            Vector3 diff = anchor.transform.position - _cameraTransform.position;
+            float score = Mathf.Abs(diff.z) + Mathf.Abs(diff.y);
+
+            if (score < bestScore)
             {
-                if (a == null) continue;
-
-                // Heurística: mesas suelen venir como anchors "TABLE" o como "SURFACE" con clasificación.
-                // Según versión, a.Label puede variar. Aquí lo hacemos flexible:
-                string name = a.name.ToLowerInvariant();
-                bool looksLikeTable = name.Contains("table");
-
-                // Si tu MRUK usa etiquetas, puedes endurecer esto:
-                // looksLikeTable |= a.AnchorLabels.Contains(MRUKAnchor.SceneLabel.TABLE); (depende de versión)
-
-                if (!looksLikeTable) continue;
-
-                if (!closest) return a;
-
-                float d = (a.transform.position - referencePos).sqrMagnitude;
-                if (d < bestDist)
-                {
-                    bestDist = d;
-                    best = a;
-                }
+                bestScore = score;
+                best = anchor;
             }
         }
 
         return best;
+    }
+
+    private void PlaceOnTableEdge(MRUKAnchor anchor)
+    {
+        // Obtener bounds de la mesa
+        if (!TryGetAnchorBounds(anchor, out Bounds tableBounds))
+        {
+            tableBounds = new Bounds(anchor.transform.position, Vector3.zero);
+            Debug.LogWarning("No se obtuvieron bounds de la mesa. Usando posición del anchor.");
+        }
+
+        // Y: superficie superior de la mesa 
+        float targetY = tableBounds.max.y + yOffset;
+
+        // Z: borde de la mesa más cercano al usuario
+        float userZ = _cameraTransform.position.z;
+        float edgeZMin = tableBounds.min.z;
+        float edgeZMax = tableBounds.max.z;
+
+        float nearestEdgeZ = (Mathf.Abs(userZ - edgeZMin) < Mathf.Abs(userZ - edgeZMax))
+            ? edgeZMin
+            : edgeZMax;
+
+        // Desplazar ligeramente hacia el usuario para evitar z fighting con la mesa
+        float directionToUser = Mathf.Sign(userZ - nearestEdgeZ);
+        float targetZ = nearestEdgeZ + directionToUser * zEdgeOffset;
+
+        // X: posición X del usuario + offset configurable 
+        float targetX = _cameraTransform.position.x + xOffset;
+
+        transform.position = new Vector3(targetX, targetY, targetZ);
+
+        // Rotación inicial hacia el usuario
+        FaceUser();
+
+        _placed = true;
+
+        Debug.Log($"Canvas colocado en {transform.position} (mesa: {anchor.name}).");
+    }
+    private void FaceUser()
+    {
+        if (_cameraTransform == null) return;
+
+        Vector3 direction = _cameraTransform.position - transform.position;
+
+        if (lockPitch)
+        {
+            // Eliminar componente vertical canvas permanece perfectamente vertical
+            direction.y = 0f;
+        }
+
+        if (direction.sqrMagnitude < 0.0001f) return;
+
+        // Negamos la dirección: queremos que la cara frontal del canvas apunte AL usuario
+        Quaternion look = Quaternion.LookRotation(-direction, Vector3.up);
+        Quaternion pitch = Quaternion.Euler(30f, 0f, 0f);
+
+        transform.rotation = look * pitch;
+    }
+    private bool TryGetAnchorBounds(MRUKAnchor anchor, out Bounds b)
+    {
+        Collider col = anchor.GetComponentInChildren<Collider>();
+        if (col != null) { b = col.bounds; return true; }
+
+        Renderer rend = anchor.GetComponentInChildren<Renderer>();
+        if (rend != null) { b = rend.bounds; return true; }
+
+        b = default;
+        return false;
     }
 }

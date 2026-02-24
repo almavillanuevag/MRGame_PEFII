@@ -32,7 +32,7 @@ public class VisualizeTrajectorySpline : MonoBehaviour
     {
         if (radiusSlider == null) return;
 
-        radiusSlider.minValue = 0.01f;
+        radiusSlider.minValue = 0.05f;
         radiusSlider.maxValue = 0.15f;
 
         // Valor inicial del slider = radio actual
@@ -89,7 +89,7 @@ public class VisualizeTrajectorySpline : MonoBehaviour
         tubeRadius = value;
         UpdateVisuals();
         if (radiusLabel != null)
-            radiusLabel.text = $"Radio: {value*100:F3} cm";
+            radiusLabel.text = $"{value*100:F2} cm";
     }
     
     public void BuildSplineFromRecordedTrajectory(List<Vector3> fullTrajectory) // Llamar esto al terminar la grabación

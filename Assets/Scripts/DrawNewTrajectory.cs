@@ -10,17 +10,15 @@ using Vector3 = UnityEngine.Vector3;
 public class DrawNewTrajectory : MonoBehaviour 
 {
     [Header("Asignar elementos para interacciones")]
-    public GameObject debugText;
     public VisualizeTrajectorySpline visualizer;
     public Transform brushPoint; // punto donde dibujas
-    public TrajectoryManager previewSpline; // Spline para visualizar
+    public TrajectoryDataLoad previewSpline; // Spline para visualizar
     
 
     [Header("UI Flujo Grabación")]
     public GameObject canvasIdle;
     public GameObject canvasDrawing;
     public GameObject canvasHAND;
-
     public GameObject panelIdle;        // Botón "Iniciar"
     public GameObject panelWaiting;     // Texto de "Toma el pincel para comenzar a dibujar"
     public GameObject panelCountdown;   // Texto 3..2..1
@@ -29,11 +27,15 @@ public class DrawNewTrajectory : MonoBehaviour
     public TextMeshProUGUI countdownDraw;
     public TextMeshProUGUI countdownTMP;
 
+    [Header("Opcional: para log de errores")]
+    public GameObject debugText;
+
     [Header("Objetos publicos para lectura")]
     // Listas de los puntos
     public List<Vector3> therapistFullTrajectoryWorld = new List<Vector3>();
     public float radius;
     public string IDTraj;
+    public OVRSkeleton DrawingHand;
 
     // Para el muestreo
     float sampleInterval = 1/60f;
@@ -59,7 +61,6 @@ public class DrawNewTrajectory : MonoBehaviour
 
     // Para las animaciones
     Animator brushAnimator;
-    bool stopHighlightAnim = false;
 
     private void Start() 
     {
@@ -94,7 +95,8 @@ public class DrawNewTrajectory : MonoBehaviour
             // Si ya hay un flujo corriendo, lo cancelamos
             if (flowCoroutine != null) StopCoroutine(flowCoroutine);
             flowCoroutine = StartCoroutine(RecordingFlowCoroutine());
-            gameObject.GetComponentInChildren<Animator>().enabled = false;
+
+            if (brushAnimator != null) brushAnimator.enabled = false;
         }
     }
 
@@ -216,8 +218,9 @@ public class DrawNewTrajectory : MonoBehaviour
         initialBrushPos = transform.position;
         initialBrushRot = transform.rotation;
 
-        // Activar el pincel
+        // Activar el pincel con animacion de destacar
         gameObject.GetComponentInChildren<MeshRenderer>().enabled = true;
+        if (brushAnimator != null) brushAnimator.enabled = true; 
 
         // Borrar la previsualizacion del spline pasado
         previewSpline.ClearSplinePreviewVisual();
@@ -235,6 +238,11 @@ public class DrawNewTrajectory : MonoBehaviour
 
         // Resetear pincel a la posicion inicial
         transform.SetPositionAndRotation(initialBrushPos, initialBrushRot);
+
+        // Activar el pincel con animacion de destacar
+        gameObject.GetComponentInChildren<MeshRenderer>().enabled = true;
+        if (brushAnimator != null) brushAnimator.enabled = true;
+
         SetState(DrawState.Waiting);
         isHolding = false;
     }
@@ -265,7 +273,6 @@ public class DrawNewTrajectory : MonoBehaviour
         float t = countdownSeconds;
         while (t > 0f)
         {
-            gameObject.GetComponentInChildren<Animator>().enabled = true;
             if (countdownTMP != null)
                 countdownTMP.text = $"{Mathf.CeilToInt(t)}"; // Posiciónate en el punto inicial.Grabación inicia en: 
 
@@ -283,9 +290,7 @@ public class DrawNewTrajectory : MonoBehaviour
         while (t1 > 0f)
         {
             if (countdownDraw != null)
-            {
                 countdownDraw.text = $"{Mathf.CeilToInt(t1)}";  
-            }
                 
             t1 -= Time.deltaTime;
             yield return null;
@@ -296,6 +301,9 @@ public class DrawNewTrajectory : MonoBehaviour
 
         // Poner el estado de que ya termino
         SetState(DrawState.Post);
+
+        // Ya no ver el pincel 
+        gameObject.GetComponentInChildren<MeshRenderer>().enabled = true;
 
         flowCoroutine = null;
     }

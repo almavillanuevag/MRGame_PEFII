@@ -3,6 +3,9 @@ using UnityEngine;
 
 public class UIHand : MonoBehaviour
 {
+    [Header("Asignar elementos para interacciones")]
+    public GameObject MenuCountdown;
+
     // variables internas
     OVRSkeleton ovrSkeleton;
     bool trackingReady = false;
@@ -10,7 +13,7 @@ public class UIHand : MonoBehaviour
     readonly OVRSkeleton.BoneId boneId = OVRSkeleton.BoneId.XRHand_Palm;
     Transform palmTransform;
 
-    Vector3 offset = new Vector3(0, 0.025f, 0);
+    public Vector3 offset = new Vector3(0, 0.1f, 0);
 
     void Start()
     {
@@ -26,11 +29,7 @@ public class UIHand : MonoBehaviour
 
         // Encontrar skeleton de esa mano
         OVRSkeleton skeleton = other.GetComponentInChildren<OVRSkeleton>();
-        if (skeleton == null)
-        {
-            Debug.LogWarning("HandCollider detectado, pero no se encontró OVRSkeleton en hijos.");
-            return;
-        }
+        if (skeleton == null) return;
 
         ovrSkeleton = skeleton;
 
@@ -67,8 +66,7 @@ public class UIHand : MonoBehaviour
         }
 
         // Actualizar posicion del canvas
-        transform.position = palmTransform.position + offset;
-        transform.rotation = palmTransform.rotation;
+        MenuCountdown.transform.position = palmTransform.position + offset;
     }
 
 

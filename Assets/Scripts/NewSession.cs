@@ -8,16 +8,10 @@ using UnityEngine.SceneManagement;
 public class NewSession : MonoBehaviour
 {
     [Header("Asignar elementos para interacciones")]
-    // Imagenes de estrella
-    public GameObject star1;
-    public GameObject star2;
-    public GameObject star3;
-    public GameObject star4;
-    public GameObject star5;
-    public TextMeshProUGUI debugText; // Para Display Debugs
-    // Acceder a otros scripts
-    public EndGame EndGame;
     public TrajectoryManager TrajectoryManager;
+
+    [Header("Log opcional para pruebas y errores")]
+    public TextMeshProUGUI debugText; // Para Display Debugs
 
     [Header("Objetos publicos para lectura")]
     public float radio;
@@ -28,37 +22,14 @@ public class NewSession : MonoBehaviour
     public void Start()
     {
         db = FirebaseFirestore.DefaultInstance; // Inicializar firestore 
-        DisplayStars();
-    }
-
-    void DisplayStars()
-    {
-        // Desactivar todas las estrellas por si acaso
-        star1.SetActive(false);
-        star2.SetActive(false);
-        star3.SetActive(false);
-        star4.SetActive(false);
-        star5.SetActive(false);
-
-        int stars = (int)EndGame.metrics[4];
-        if (stars >= 1) star1.SetActive(true);
-        if (stars >= 2) star2.SetActive(true);
-        if (stars >= 3) star3.SetActive(true);
-        if (stars >= 4) star4.SetActive(true);
-        if (stars >= 5) star5.SetActive(true);
     }
 
     public void PlayAgain()
     {
         // Generar nuevo ID para la proxima sesión
-        GenerateNewSessionID();
-    }
-
-    void GenerateNewSessionID()
-    {
         if (SelectPatient.Instance == null || string.IsNullOrEmpty(SelectPatient.Instance.IDPx))
         {
-            if(debugText !=null) debugText.text = "Error: No hay instancia de SelectPatient o ID de paciente.";
+            if (debugText != null) debugText.text = "Error: No hay instancia de SelectPatient o ID de paciente.";
             return;
         }
 
@@ -69,7 +40,7 @@ public class NewSession : MonoBehaviour
         {
             if (task.IsFaulted || task.IsCanceled)
             {
-                if(debugText !=null) debugText.text = "Error al obtener datos del paciente: " + task.Exception;
+                if (debugText != null) debugText.text = "Error al obtener datos del paciente: " + task.Exception;
                 return;
             }
 
@@ -83,23 +54,19 @@ public class NewSession : MonoBehaviour
             int nextSessionNumber = (int)CompletedSessions + 1;
 
             SelectPatient.Instance.CurrentSessionNumber = nextSessionNumber;
-            CreateAndReload();
+
+            // Asignar ID y recargar escena
+            int sessionNumber = SelectPatient.Instance.CurrentSessionNumber;
+            string dateDDMMAA = DateTime.Now.ToString("ddMMyy");
+
+            // Generar el nuevo ID de la proxima sesion y actualizarlo
+            string newIDSession = $"SessionNum{sessionNumber:D3}-{dateDDMMAA}";
+            SelectPatient.Instance.IDSession = newIDSession;
+
+            if (debugText != null) debugText.text += $"\n Próxima sesión: {newIDSession}";
+
+            // Recargar escena
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         });
     }
-
-    void CreateAndReload()
-    {
-        int sessionNumber = SelectPatient.Instance.CurrentSessionNumber;
-        string dateDDMMAA = DateTime.Now.ToString("ddMMyy");
-
-        // Generar el nuevo ID de la proxima sesion y actualizarlo
-        string newIDSession = $"SessionNum{sessionNumber:D3}-{dateDDMMAA}";
-        SelectPatient.Instance.IDSession = newIDSession;
-
-        if(debugText !=null) debugText.text += $"\n Próxima sesión: {newIDSession}";
-
-        // Recargar escena
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-    }
-
 }

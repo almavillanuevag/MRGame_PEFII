@@ -3,17 +3,26 @@ using Firebase.Firestore;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using TMPro;
 using UnityEngine;
 
 public class EndGame : MonoBehaviour
 {
     [Header("Asignar elementos para interacciones")]
     public Transform PlanetEndPoint; // Punto final donde se situará la nave
-    public TMPro.TextMeshProUGUI debugText; // Para Display Debugs (quitar despues, para pruebas)
     public TrajectoryManager TrajectoryManager; // Scrpt de la trayectoria para calcular 
     public GameObject UICanvasWin;
     public FollowHand followHand;
 
+    [Header("Asignar estrellas del UI")]
+    public GameObject star1;
+    public GameObject star2;
+    public GameObject star3;
+    public GameObject star4;
+    public GameObject star5;
+
+    [Header("Log opcional para pruebas y errores")]
+    public TextMeshProUGUI debugText; // Para Display Debugs
 
     [Header("Objetos publicos para lectura")]
     public float tMin = 50; // variable para stars ** MODIFICABLE
@@ -59,6 +68,9 @@ public class EndGame : MonoBehaviour
                 if (debugText != null) debugText.text += "\nNo se pudo resolver dependencias de Firestore";
             }
         });
+
+        UICanvasWin.SetActive(false);
+
     }
 
     private void Update()
@@ -102,8 +114,7 @@ public class EndGame : MonoBehaviour
             // Eliminar las funciones de retroalimentacion haptica
             followHand.StopHapticFeedbackFunctions();
 
-            // Cargar UI de victoria y fin del juego
-            UICanvasWin.SetActive(true);
+            
 
             // Calcular las metricas de desempeño solo una vez si ya termino
             if (!End)  
@@ -126,22 +137,29 @@ public class EndGame : MonoBehaviour
                 // Almacenar las metricas en Firebase firestore database
                 SaveSessionToFirestore(metrics);
             }
+            
+            // Cargar UI de victoria y fin del juego
+            UICanvasWin.SetActive(true);
+            DisplayStars();
         }
     }
 
     void SetShipToFinalPosition(Collider other)
     {
         if (debugText != null) debugText.text += "\nAterrizaje";
+        ShipGameObject = other.gameObject;
 
         // Desparentar la nave
-        other.transform.SetParent(null);
+        ShipGameObject.transform.SetParent(null);
 
         // Posicionarlo arriba del planeta
-        other.transform.position = PlanetEndPoint.position;
-        other.transform.rotation = PlanetEndPoint.rotation;
+        ShipGameObject.transform.position = PlanetEndPoint.position;
+        ShipGameObject.transform.rotation = PlanetEndPoint.rotation;
 
+        // Dejarlo fijo en el planeta: quitarle los colliders
+        ShipGameObject.GetComponent<BoxCollider>().enabled = false;
+        ShipGameObject.GetComponent<CapsuleCollider>().enabled = false;
         // Regresarle propiedades fisicas
-        ShipGameObject = other.gameObject;
         Rigidbody rb = ShipGameObject.GetComponent<Rigidbody>();
         rb.linearVelocity = Vector3.zero; // Detener cualquier velocidad residual
         rb.angularVelocity = Vector3.zero;
@@ -268,6 +286,23 @@ public class EndGame : MonoBehaviour
         {
             if (debugText != null) debugText.text += "\n Error al actualizar contador: "+ ex.Message;
         }
+    }
+
+    void DisplayStars()
+    {
+        // Desactivar todas las estrellas por si acaso
+        star1.SetActive(false);
+        star2.SetActive(false);
+        star3.SetActive(false);
+        star4.SetActive(false);
+        star5.SetActive(false);
+
+        int stars = (int)metrics[4];
+        if (stars >= 1) star1.SetActive(true);
+        if (stars >= 2) star2.SetActive(true);
+        if (stars >= 3) star3.SetActive(true);
+        if (stars >= 4) star4.SetActive(true);
+        if (stars >= 5) star5.SetActive(true);
     }
 
 }

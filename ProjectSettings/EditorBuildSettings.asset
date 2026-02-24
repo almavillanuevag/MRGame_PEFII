@@ -5,27 +5,12 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 0
-    path: Assets/Scenes/Escena1.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 0
-    path: Assets/Scenes/Haptics1.unity
-    guid: c34d8ec24a4283340b8bd982fff936a4
-  - enabled: 0
-    path: Assets/Scenes/Dibujos1.unity
-    guid: 632cd59e1b812f44dba1a580dad87d08
-  - enabled: 0
-    path: Assets/Scenes/Haptics 2.unity
-    guid: 6f3a8d49a3eaaf14595aa8a4dcdcbfca
-  - enabled: 0
-    path: Assets/Scenes/Dibujos2.unity
-    guid: 870ea1d3fbb56f24680e55f82589794b
   - enabled: 1
-    path: Assets/Scenes/Terapeuta 1.unity
+    path: Assets/Scenes/0 Theraphist Menu.unity
     guid: f77e8ccb898b59844b65155d13fa3057
   - enabled: 1
-    path: Assets/Scenes/FullGame v1.unity
-    guid: 3d5f643d1a9bd9f4fb48aa27423bad8e
+    path: Assets/Scenes/1 Patient Session SG.unity
+    guid: d471f02844b5e50438abc4f122359896
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 231b7fa1247f5954f95e270a0995ea9c, type: 2}
