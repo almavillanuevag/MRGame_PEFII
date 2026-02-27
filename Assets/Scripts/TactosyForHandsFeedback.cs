@@ -13,6 +13,7 @@ public class TactosyForHandsFeedback : MonoBehaviour
     public SplineContainer Trajectory;
     public ShipMovement shipMovementR;
     public ShipMovement shipMovementL;
+    public EndGame endGame;
 
     // Del spline
     float radio;
@@ -35,8 +36,11 @@ public class TactosyForHandsFeedback : MonoBehaviour
 
         if (Ship == null) return;
 
-        distance = ShipDistanceFromSpline(Ship.position, Trajectory);
+        // Validar que siga jugando y no se haya terminado la sesión
+        if (endGame.End) return;
 
+        // Calcular la distancia y 
+        distance = ShipDistanceFromSpline(Ship.position, Trajectory);
 
         if (distance >= radio)
         {

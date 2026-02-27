@@ -3,7 +3,6 @@ using Firebase.Firestore;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.Splines;
 
 public class SelectPatient : MonoBehaviour
 {
@@ -42,8 +41,6 @@ public class SelectPatient : MonoBehaviour
     private void Start()
     {
         db = FirebaseFirestore.DefaultInstance;
-        if (TrajectoriesDropdown != null)
-            TrajectoriesDropdown.gameObject.SetActive(false);
         LoadingPatients(); // puedo poner despues un boton de refresh! ------------------------------------------------ ** PENDIENTE    
     }
 
@@ -72,8 +69,19 @@ public class SelectPatient : MonoBehaviour
                      PatientsDropdown.onValueChanged.AddListener(OnSelectedPatient);
                      PatientsDropdown.value = 0;
 
-                     // Auto-seleccionar el primero
-                     OnSelectedPatient(0);
+                     // Elegir paciente actual (IDPx) si existe; si no, primero
+                     int idxToSelect = 0;
+                     if (!string.IsNullOrEmpty(IDPx))
+                     {
+                         int found = IDsPxlist.IndexOf(IDPx);
+                         if (found >= 0) idxToSelect = found;
+                     }
+
+                     PatientsDropdown.value = idxToSelect;
+                     PatientsDropdown.RefreshShownValue();
+
+                     // Auto seleccionar el primero la primera vez que se comienza a jugar.
+                     OnSelectedPatient(idxToSelect);
                  }
                  else
                  {
@@ -86,24 +94,17 @@ public class SelectPatient : MonoBehaviour
     public void OnSelectedPatient(int index)
     {
         if (index < 0 || index >= IDsPxlist.Count)
-            if(debugText !=null) debugText.text += "\nIndice Invalido en PatientsDropdown";
+            return;
 
         // El IDPx es el Document ID correspondiente al índice seleccionado
         IDPx = IDsPxlist[index];
-        if(debugText !=null) debugText.text += "\nDocument ID seleccionado (IDPx): " + IDPx;
 
         GenerateIDSession();
-
         IDTraj = null;
-
         if (TrajectoriesDropdown != null)
         {
             TrajectoriesDropdown.gameObject.SetActive(true);
             LoadingTrajectories(); 
-        }
-        else
-        {
-            Log("TrajectoriesDropdown no asignado.");
         }
     }
 
@@ -210,7 +211,11 @@ public class SelectPatient : MonoBehaviour
     public void OnSelectedTrajectory(int index)
     {
         if (index < 0 || index >= IDsTrajlist.Count)
+        {
             if (debugText != null) debugText.text += "\nIndice Invalido";
+            return;
+        }
+            
 
         // El IDPx es el Document ID correspondiente al índice seleccionado
         IDTraj = IDsTrajlist[index];

@@ -34,11 +34,11 @@ public class FollowHand : MonoBehaviour // Crea y actualiza colliders en las pun
     // Definir los BoneIds de las puntas de cada dedo
     private OVRSkeleton.BoneId[] fingerBoneIds = new OVRSkeleton.BoneId[]
     {
-        OVRSkeleton.BoneId.XRHand_ThumbDistal,        // Pulgar
-        OVRSkeleton.BoneId.XRHand_IndexIntermediate,  // Índice
-        OVRSkeleton.BoneId.XRHand_MiddleIntermediate, // Medio
-        OVRSkeleton.BoneId.XRHand_RingIntermediate,   // Anular
-        OVRSkeleton.BoneId.XRHand_LittleIntermediate,  // Meñique
+        OVRSkeleton.BoneId.XRHand_ThumbProximal,        // Pulgar
+        OVRSkeleton.BoneId.XRHand_IndexProximal,  // Índice
+        OVRSkeleton.BoneId.XRHand_MiddleProximal, // Medio
+        OVRSkeleton.BoneId.XRHand_RingProximal,   // Anular
+        OVRSkeleton.BoneId.XRHand_LittleProximal,  // Meñique
         OVRSkeleton.BoneId.XRHand_Palm                // Palma
     };
 

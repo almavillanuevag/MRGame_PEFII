@@ -11,6 +11,7 @@ public class TrajectoryDataLoad : MonoBehaviour
 {
     [Header("Asignar desde el inspector para interaccíones")]
     public TableInitialPlacement tableInitialPlacement;
+    public TextMeshPro noTrajTMP;
 
     [Header("Modo solo visualizador (opcional)")]
     public bool isVisualizer = false;
@@ -25,7 +26,7 @@ public class TrajectoryDataLoad : MonoBehaviour
     public SplineExtrude splineExtrude;
     public float radio;
 
-    public enum LoadState { Idle, Loading, Ready, Failed }
+    public enum LoadState { Idle, Loading, Ready, NoData, Failed }
     public LoadState State { get; private set; } = LoadState.Idle;
 
     // Variables privadas para funcionamiento interno
@@ -108,6 +109,12 @@ public class TrajectoryDataLoad : MonoBehaviour
         while (SelectPatient.Instance == null)
             yield return null;
 
+        // Si no hay trayectorias desplegar un mensaje en el UI
+        if(string.IsNullOrEmpty(SelectPatient.Instance.IDTraj))
+        {
+            EnterNoTrajectoriesMode();
+        }
+
         while (string.IsNullOrEmpty(SelectPatient.Instance.IDPx))
             yield return null;
 
@@ -121,6 +128,8 @@ public class TrajectoryDataLoad : MonoBehaviour
         }
 
         State = LoadState.Loading;
+
+        HideNoTrajMessage();
 
         Log($"Cargando trayectoria seleccionada: {idTraj} (Paciente: {idPx})");
 
@@ -212,6 +221,33 @@ public class TrajectoryDataLoad : MonoBehaviour
         });
 
         yield break;
+    }
+
+    void EnterNoTrajectoriesMode()
+    {
+        // Mensaje en UI
+        if (noTrajTMP != null)
+        {
+            noTrajTMP.gameObject.SetActive(true);
+            noTrajTMP.text = "No hay trayectorias, crear una nueva";
+        }
+
+        // Importante: NO mostrar tubo
+        if (splineExtrude != null) splineExtrude.enabled = false;
+
+        // Oculta renderer del tubo (por si hay uno)
+        var mr = GetComponent<MeshRenderer>();
+        if (mr != null) mr.enabled = false;
+
+        // AUN ASÍ, posiciona el spline “default” en mesa (y con eso nave/planeta si dependen de tu TableInitialPlacement)
+        StartCoroutine(PlaceOnTableAfterSplineReady());
+
+        State = LoadState.NoData;
+    }
+
+    void HideNoTrajMessage()
+    {
+        if (noTrajTMP != null) noTrajTMP.gameObject.SetActive(false);
     }
 
     IEnumerator PlaceOnTableAfterSplineReady()

@@ -39,7 +39,7 @@ public class DrawNewTrajectory : MonoBehaviour
 
     // Para el muestreo
     float sampleInterval = 1/60f;
-    float minDistance = 0.01f;
+    float minDistance = 0.005f;
     bool drawing = false;
     Vector3 lastSamplePos;
     Coroutine samplingCoroutine;

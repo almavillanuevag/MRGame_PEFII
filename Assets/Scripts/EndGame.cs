@@ -1,9 +1,11 @@
 using Firebase.Extensions;
 using Firebase.Firestore;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class EndGame : MonoBehaviour
@@ -11,10 +13,13 @@ public class EndGame : MonoBehaviour
     [Header("Asignar elementos para interacciones")]
     public Transform PlanetEndPoint; // Punto final donde se situará la nave
     public TrajectoryManager TrajectoryManager; // Scrpt de la trayectoria para calcular 
-    public GameObject UICanvasWin;
     public FollowHand followHand;
+    public NewSession newSession;
+    
 
-    [Header("Asignar estrellas del UI")]
+    [Header("Asignar elementos de UI")]
+    public GameObject UICanvasWin;
+    public GameObject UICanvasLoadingNext;
     public GameObject star1;
     public GameObject star2;
     public GameObject star3;
@@ -33,7 +38,7 @@ public class EndGame : MonoBehaviour
     public bool OutOfTube = false;
     public bool End = false;
     public int sessionNumber;
-
+    public ShipMovement shipMovement;
     public float[] metrics;
 
     // Tiempos
@@ -50,6 +55,8 @@ public class EndGame : MonoBehaviour
     FirebaseFirestore db;
     string IDPx;
     string IDSession;
+
+
 
     private void Start()
     {
@@ -70,6 +77,7 @@ public class EndGame : MonoBehaviour
         });
 
         UICanvasWin.SetActive(false);
+        UICanvasLoadingNext.SetActive(false);
 
     }
 
@@ -106,44 +114,55 @@ public class EndGame : MonoBehaviour
         if (other.CompareTag("Ship"))
         {
             // Posicionar la nave en el punto final y regresarle propiedades fisicas
-            ShipMovement shipMovement = other.GetComponentInParent<ShipMovement>();
+            shipMovement = other.GetComponentInParent<ShipMovement>();
             shipMovement.ForceRelease();
-
             SetShipToFinalPosition(other);
 
             // Eliminar las funciones de retroalimentacion haptica
             followHand.StopHapticFeedbackFunctions();
 
-            
-
             // Calcular las metricas de desempeño solo una vez si ya termino
-            if (!End)  
-            {
-                End = true; // Flag de que ya termino y que no se vuelvan a calcular
-                // Obtener el tiempo cuando se colocó la nave en la mano (inicio del juego)
-                BeginningTime = shipMovement.BeginningTime;
-                // Obtener tiempo en el que llegó al planeta fin
-                FinishTime = Time.time;
+            if (End) return;
+            End = true;  // Flag de que ya termino y que no se vuelvan a calcular
 
-                // Calcular las metricas
-                metrics = CalculatePerformanceMetrics();
-                if (debugText != null) debugText.text +=
-                    $"\nErrors: {metrics[0]}\n" +
-                    $"Time: {metrics[1]:F1}\n" +
-                    $"Inside %: {metrics[2]:F1}\n" +
-                    $"Radio: {metrics[3]:F2}\n" +
-                    $"Stars: {metrics[4]}";
+            // Obtener el tiempo cuando se colocó la nave en la mano (inicio del juego)
+            BeginningTime = shipMovement.BeginningTime;
+            // Obtener tiempo en el que llegó al planeta fin
+            FinishTime = Time.time;
 
-                // Almacenar las metricas en Firebase firestore database
-                SaveSessionToFirestore(metrics);
-            }
-            
-            // Cargar UI de victoria y fin del juego
-            UICanvasWin.SetActive(true);
-            DisplayStars();
+            // Calcular las metricas
+            shipMovement.StopRecordingTrajectory();
+            metrics = CalculatePerformanceMetrics();
+
+            // Comenzar la secuencia de finalizar
+            StartCoroutine(WinSequence(metrics));
         }
     }
 
+    IEnumerator WinSequence(float[] m)
+    {
+        // Guardar sesión (async, esperamos su finalización)
+        bool savedDone = false;
+        SaveSessionToFirestore(m, () => savedDone = true);
+        yield return new WaitUntil(() => savedDone);
+
+        // Mostrar UI de victoria con estrellas
+        UICanvasWin.SetActive(true);
+        DisplayStars();
+
+        // Tiempo proporcional a estrellas: stars*2 + 1
+        int stars = (int)m[4];
+        float wait = stars * 2f + 1f;
+        yield return new WaitForSeconds(wait);
+
+        // Ocultar victoria, mostrar "Cargando siguiente nivel"
+        UICanvasLoadingNext.SetActive(true);
+
+        yield return new WaitForSeconds(3f);
+
+        // Ejecutar NewSession para la lógica de progresión 
+        newSession.PlayAgain(metrics[3]);
+    }
     void SetShipToFinalPosition(Collider other)
     {
         if (debugText != null) debugText.text += "\nAterrizaje";
@@ -204,12 +223,13 @@ public class EndGame : MonoBehaviour
         return metrics;
     }
 
-    async void SaveSessionToFirestore(float[] metrics)
+    async void SaveSessionToFirestore(float[] metrics, Action onDone)
     {
         // Validar que tenga acceso a la instancia de SelectPatient
         if (SelectPatient.Instance == null)
         {
             debugText.text += "\nNo hay Instancia de SelectPatient.cs";
+            onDone?.Invoke();
             return;
         }
         
@@ -218,34 +238,18 @@ public class EndGame : MonoBehaviour
         IDSession = SelectPatient.Instance.IDSession;
         sessionNumber = SelectPatient.Instance.CurrentSessionNumber;
 
-        if (debugText != null) // Mostrar los IDs para corroborar que se leyeron
-        {
-            debugText.text += "\nIDPx desde EndGame: " + IDPx;
-            debugText.text += "\nIDSession desde EndGame: " + IDSession;
-            debugText.text += "\nNumero de sesion desde EndGame: " + sessionNumber;
-        }
-
         // Buscar errores
-        if (db == null)
+        if (db == null || string.IsNullOrEmpty(IDPx))
         {
             if (debugText != null) debugText.text += "\nERROR: Firestore no inicializado";
+            onDone?.Invoke();
             return;
         }
-
-        if (string.IsNullOrEmpty(IDPx))
-        {
-            if (debugText != null) debugText.text += "\nERROR: IDPx inválido";
-            return;
-        }
-
-        // Continuar si no hay errores
-        if (debugText != null) debugText.text += "\nEnviando datos a Firestore...";
-
         // Configurar la informacion antes de guardarla
         var idTraj = SelectPatient.Instance.IDTraj;
-        float totalTimeRounded = Mathf.Round(metrics[1] * 1000f) / 1000f;
-        float InsideTimePercentageRounded = Mathf.Round(metrics[2] * 1000f) / 1000f;
-        float radioRounded = Mathf.Round(metrics[2] * 1000f) / 1000f;
+
+        List<Vector3> patientTrajectory = null;
+        patientTrajectory = shipMovement.patientTrajectory;
 
         // Organizar metricas como diccionario para Firestore
         var data = new Dictionary<string, object>
@@ -253,11 +257,28 @@ public class EndGame : MonoBehaviour
             { "Trayectoria", idTraj },
             { "DateTime", Timestamp.GetCurrentTimestamp() },
             { "TotalErrors", (int)metrics[0] },
-            { "TotalTime", totalTimeRounded },
-            { "InsideTimePercentage", InsideTimePercentageRounded },
-            { "radio", radioRounded},
+            { "TotalTime", Mathf.Round(metrics[1] * 1000f) / 1000f },
+            { "InsideTimePercentage", Mathf.Round(metrics[2] * 1000f) / 1000f },
+            { "radio", Mathf.Round(metrics[3] * 1000f) / 1000f},
             { "stars", (int)metrics[4] }
         };
+
+        if (patientTrajectory != null && patientTrajectory.Count > 0)
+        {
+            var pointsList = new List<Dictionary<string, object>>(patientTrajectory.Count);
+            foreach (var p in patientTrajectory)
+            {
+                pointsList.Add(new Dictionary<string, object>
+                {
+                    { "x", p.x },
+                    { "y", p.y },
+                    { "z", p.z }
+                });
+            }
+
+            data.Add("TrayectoriaPaciente", pointsList);
+            data.Add("CantidadPuntosPaciente", patientTrajectory.Count);
+        }
 
         // Referenciar documento en firestore y almacenar los datos
         var sessionRef = db.Collection("Pacientes").Document(IDPx).Collection("Sesiones").Document(IDSession);
@@ -270,6 +291,8 @@ public class EndGame : MonoBehaviour
 
         // Actualizar contador de sesiones completadas
         await UpdateCompletedSessionsCounter(IDPx, sessionNumber);
+
+        onDone?.Invoke();
     }
 
     async Task UpdateCompletedSessionsCounter(string idPx, int sessionNumber)

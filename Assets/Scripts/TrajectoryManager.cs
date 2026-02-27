@@ -24,7 +24,7 @@ public class TrajectoryManager : MonoBehaviour
     public float distance = 0;
     public float erroresMax = 3f;
     public float radioMax = 0.2f;
-    public float radioSUM = 0.03f;
+    public float radioSUM = 0.05f;
     public float errors = 0;
     public float TotalError = -1;
 
